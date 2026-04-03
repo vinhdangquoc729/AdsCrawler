@@ -1,0 +1,6 @@
+.venv
+airflow/.ivy2
+airflow/logs
+airflow/plugins
+*/__pycache__/*
+*.pyc
