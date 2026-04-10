@@ -104,6 +104,36 @@ class FacebookAdsProcessor(BaseDataProcessor):
             self.write_to_clickhouse(dim_ad, "marketing_db.dim_ad")
             self.write_to_clickhouse(fact_daily, "marketing_db.fact_fb_ad_daily")
 
+            # --- Ghi bản denormalized vào bảng fad_ad_daily_report ---
+            print(" -> Đang ghi bảng denormalized fad_ad_daily_report...")
+            daily_report = valid_daily.select(
+                col("id"),
+                coalesce(col("name"), lit("")).alias("name"),
+                col("adset_id"),
+                coalesce(col("adset_name"), lit("")).alias("adset_name"),
+                col("campaign_id"),
+                coalesce(col("campaign_name"), lit("")).alias("campaign_name"),
+                col("account_id"),
+                coalesce(col("account_name"), lit("")).alias("account_name"),
+                to_date(col("date_start"), "yyyy-MM-dd").alias("date_start"),
+                to_date(col("date_start"), "yyyy-MM-dd").alias("date_stop"),
+                # Chỉ số Hiệu suất
+                coalesce(col("spend").cast("float"), lit(0.0)).alias("spend"),
+                coalesce(col("impressions").cast("int"), lit(0)).alias("impressions"),
+                coalesce(col("reach").cast("int"), lit(0)).alias("reach"),
+                coalesce(col("clicks").cast("int"), lit(0)).alias("clicks"),
+                coalesce(col("ctr").cast("float"), lit(0.0)).alias("ctr"),
+                coalesce(col("cpc").cast("float"), lit(0.0)).alias("cpc"),
+                coalesce(col("cpm").cast("float"), lit(0.0)).alias("cpm"),
+                coalesce(col("frequency").cast("float"), lit(0.0)).alias("frequency"),
+                # Chỉ số Chuyển đổi
+                coalesce(col("New Messaging Connections").cast("int"), lit(0)).alias("new_messaging_connections"),
+                coalesce(col("Cost per New Messaging").cast("float"), lit(0.0)).alias("cost_per_new_messaging"),
+                coalesce(col("Link clicks").cast("int"), lit(0)).alias("link_clicks"),
+                coalesce(col("Landing page views").cast("int"), lit(0)).alias("landing_page_views")
+            )
+            self.write_to_clickhouse(daily_report, "marketing_db.fad_ad_daily_report")
+
         # AD CREATIVE
         creative_raw = df.filter((col("platform") == "facebook") & (col("report_type") == "ad_creative"))
         if not creative_raw.isEmpty():
