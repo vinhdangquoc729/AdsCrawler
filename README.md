@@ -52,6 +52,7 @@ Build the custom images and start all services:
 ```bash
 docker-compose up -d --build
 ```
+**Important Notes:** Currently, there is a problem with downloading Spark dependencies during the build phase, which may cause the build to fail. To mitigate this, you can pre-download the [Spark package](https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz) and place it in the project root.
 
 **Step 3: Verify Initialization**
 Monitor the Airflow initialization process:

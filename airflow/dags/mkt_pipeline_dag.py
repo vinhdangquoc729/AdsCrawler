@@ -25,6 +25,7 @@ with DAG(
     t1_ingestion = BashOperator(
         task_id='kafka_ingestion_task',
         bash_command="""
+            cd /opt/spark/work-dir && \ 
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir && \
             python3 /opt/spark/work-dir/kafka_ingestion/main.py
         """

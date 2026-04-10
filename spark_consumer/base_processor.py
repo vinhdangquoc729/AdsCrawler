@@ -4,11 +4,11 @@ class BaseDataProcessor:
     """Base class for writing processed data to ClickHouse."""
     def __init__(self, spark_session):
         self.spark = spark_session
-        self.jdbc_url = "jdbc:clickhouse://clickhouse:8123/marketing_db"
+        self.jdbc_url = "jdbc:clickhouse://clickhouse:8123/marketing_db?ssl=false&compress=false"
         self.jdbc_props = {
             "user": "admin",
             "password": "password123",
-            "driver": "ru.yandex.clickhouse.ClickHouseDriver",
+            "driver": "com.clickhouse.jdbc.ClickHouseDriver",
             "isolationLevel": "NONE"
         }
 
