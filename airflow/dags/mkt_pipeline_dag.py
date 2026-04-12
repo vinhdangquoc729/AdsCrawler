@@ -1,5 +1,5 @@
 # airflow/dags/mkt_pipeline_dag.py
-# This DAG defines a marketing data pipeline that automates the ingestion of data from Kafka and processing it with Spark.
+# This DAG defines a marketing data pipeline that automates the ingestion of mock data to MinIO.
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -16,23 +16,26 @@ default_args = {
 with DAG(
     'marketing_data_pipeline',
     default_args=default_args,
-    description='Automated pipeline for ingesting marketing data from Kafka and processing with Spark',
+    description='Automated pipeline for landing mock marketing data in MinIO',
     schedule_interval='@daily',
     catchup=False,
-    tags=['marketing', 'kafka', 'spark']
+    tags=['marketing', 'minio', 'mock']
 ) as dag:
 
-    t1_ingestion = BashOperator(
-        task_id='kafka_ingestion_task',
+    t0_mock_generation = BashOperator(
+        task_id='mock_generation_task',
         bash_command="""
             cd /opt/spark/work-dir && \ 
-            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir && \
-            python3 /opt/spark/work-dir/kafka_ingestion/main.py
+            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir/kafka_ingestion && \
+            export MINIO_ENDPOINT=minio:9000 && \
+            export MINIO_ACCESS_KEY=admin && \
+            export MINIO_SECRET_KEY=password123 && \
+            python3 /opt/spark/work-dir/kafka_ingestion/run_mock.py
         """
     )
 
-    t2_spark_consumer = BashOperator(
-        task_id='spark_consumer_task',
+    t1_spark_processor = BashOperator(
+        task_id='spark_batch_processor',
         bash_command="""
             spark-submit --master spark://spark-master:7077 \
             --jars /opt/airflow/jars/spark-sql-kafka.jar,\
@@ -46,5 +49,4 @@ with DAG(
         """
     )
 
-    # Thứ tự: Ingestion xong mới đến Spark Consumer
-    t1_ingestion >> t2_spark_consumer
+    t0_mock_generation >> t1_spark_processor
