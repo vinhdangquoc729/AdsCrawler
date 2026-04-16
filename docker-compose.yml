@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   marketing-net:
     driver: bridge
