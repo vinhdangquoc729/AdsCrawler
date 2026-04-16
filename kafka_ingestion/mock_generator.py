@@ -40,10 +40,11 @@ class MockGenerator:
         ]
     }
 
-    def __init__(self, endpoint=None, access_key=None, secret_key=None):
+    def __init__(self, endpoint=None, access_key=None, secret_key=None, enable_xlsx_buffer=False):
         self.minio_client = MinioClient(endpoint, access_key, secret_key)
         self.rng = random.Random()
         self.export_buffer = {}
+        self.enable_xlsx_buffer = enable_xlsx_buffer
 
     def _get_deterministic_id(self, seed_str, prefix="id"):
         h = hashlib.md5(seed_str.encode()).hexdigest()
@@ -116,8 +117,9 @@ class MockGenerator:
 
     def _upload_chunk(self, table_name, data):
         if not data: return
-        if table_name not in self.export_buffer: self.export_buffer[table_name] = []
-        self.export_buffer[table_name].extend(data)
+        if self.enable_xlsx_buffer:
+            if table_name not in self.export_buffer: self.export_buffer[table_name] = []
+            self.export_buffer[table_name].extend(data)
         result = self.minio_client.upload_json(table_name, data)
         # Quiet upload logging to avoid cluttering stdout
         if not result["success"]: print(f"   ... FAILED upload {table_name}: {result['error']}")

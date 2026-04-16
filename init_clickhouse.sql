@@ -168,3 +168,19 @@ CREATE TABLE IF NOT EXISTS marketing_db.fact_fb_ad_demographic_daily (
 PARTITION BY toYYYYMM(date_start)
 ORDER BY (account_id, ad_id, age, gender, date_start);
 
+CREATE TABLE IF NOT EXISTS marketing_db.dim_date (
+    date Date,
+    year Int16,
+    quarter Int8,
+    month Int8,
+    month_name String,
+    week Int8,
+    day_of_year Int16,
+    day_of_month Int8,
+    day_of_week Int8,   -- 1=Mon ... 7=Sun
+    day_name String,
+    is_weekend  UInt8,  -- 1 or 0
+    is_holiday  UInt8,  -- public holidays
+    holiday_name Nullable(String)
+) ENGINE = ReplacingMergeTree()
+ORDER BY date;
