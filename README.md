@@ -3,7 +3,7 @@
 This project implements an automated, end-to-end Modern Data Stack for marketing analytics. It orchestrates the flow of data from raw JSON sources into a distributed infrastructure comprising a Message Broker, Data Lake, and Data Warehouse.
 
 ## 1. System Architecture
-<img width="1529" height="679" alt="image" src="https://github.com/user-attachments/assets/d95976c1-37a1-41f8-879e-47f3720e5cd4" />
+<img width="1565" height="647" alt="image" src="https://github.com/user-attachments/assets/87539a83-c562-4959-96d6-9aa9829b2f31" />
 
 The pipeline is composed of 11 Docker containers working in synchronization:
 - Orchestration: Apache Airflow (Webserver, Scheduler, and Init) manages the workflow.
