@@ -4,5 +4,5 @@ airflow/logs
 airflow/plugins
 */__pycache__/*
 *.pyc
-
+spark-3.5.1-bin-hadoop3.tgz
 .env
