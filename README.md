@@ -66,11 +66,7 @@ Before running the pipeline for the first time, you must manually create the req
 
 Run the following command from your host terminal:
 ```bash
-docker exec -it mkt_kafka kafka-topics --create \
-    --topic topic_fb_raw \
-    --bootstrap-server localhost:9092 \
-    --partitions 1 \
-    --replication-factor 1
+docker exec -it mkt_kafka kafka-topics --create --topic topic_fb_raw --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
 
 The system is ready once this container exits with code 0.
