@@ -1,0 +1,48 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile.airflow"
+      - "Dockerfile.superset"
+      - "requirements.txt"
+
+jobs:
+  build-airflow:
+    name: Build Airflow Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Airflow image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.airflow
+          push: false
+          tags: mkt_airflow:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-superset:
+    name: Build Superset Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Superset image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.superset
+          push: false
+          tags: mkt_superset:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

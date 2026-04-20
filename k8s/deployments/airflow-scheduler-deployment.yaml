@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  namespace: marketing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:13
+          command: ["sh", "-c", "until pg_isready -h postgres -U airflow; do sleep 2; done"]
+      containers:
+        - name: airflow-scheduler
+          image: mkt_airflow:latest
+          imagePullPolicy: IfNotPresent
+          command: ["airflow", "scheduler"]
+          envFrom:
+            - configMapRef:
+                name: airflow-config
+            - secretRef:
+                name: airflow-secret
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - mountPath: /opt/airflow/dags
+              name: dags
+      volumes:
+        - name: dags
+          hostPath:
+            path: /opt/airflow/dags

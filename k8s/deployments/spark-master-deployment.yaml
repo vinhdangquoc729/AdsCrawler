@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-master
+  namespace: marketing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-master
+  template:
+    metadata:
+      labels:
+        app: spark-master
+    spec:
+      containers:
+        - name: spark-master
+          image: apache/spark:3.5.1
+          command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
+          ports:
+            - containerPort: 8080
+              name: ui
+            - containerPort: 7077
+              name: master
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"

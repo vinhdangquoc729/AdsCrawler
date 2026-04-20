@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+  namespace: marketing
+data:
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  _AIRFLOW_WWW_USER_CREATE: "true"
+  _AIRFLOW_WWW_USER_USERNAME: admin
+  _AIRFLOW_WWW_USER_EMAIL: admin@example.com
+  _AIRFLOW_WWW_USER_FIRSTNAME: Admin
+  _AIRFLOW_WWW_USER_LASTNAME: User
+  _AIRFLOW_WWW_USER_ROLE: Admin
