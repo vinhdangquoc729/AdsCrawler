@@ -64,9 +64,9 @@ services:
       - minio
     entrypoint: >
       /bin/sh -c "
-      until (/usr/bin/mc config host add myminio http://minio:9000 admin password123) do echo 'Waiting for MinIO...' && sleep 1; done;
+      until (/usr/bin/mc alias set myminio http://minio:9000 admin password123) do echo 'Waiting for MinIO...' && sleep 1; done;
       /usr/bin/mc mb myminio/marketing-datalake;
-      /usr/bin/mc policy set public myminio/marketing-datalake;
+      /usr/bin/mc anonymous set public myminio/marketing-datalake;
       exit 0;
       "
     networks:
@@ -84,13 +84,13 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_EMAIL=admin@fab.org
       - ADMIN_PASSWORD=password123
-      - SQLALCHEMY_DATABASE_URI=sqlite:////opt/superset/data/superset.db
+      - SQLALCHEMY_DATABASE_URI=sqlite:////app/superset_home/superset.db
     depends_on:
       - clickhouse
       - kafka
       - minio
     volumes:
-      - superset_data:/opt/superset/data
+      - superset_data:/app/superset_home
     networks:
       - marketing-net
     entrypoint: >

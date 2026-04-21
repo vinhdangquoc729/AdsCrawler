@@ -27,11 +27,11 @@ with DAG(
         bash_command="""
             pip install --quiet minio openpyxl pandas &&
             cd /opt/spark/work-dir &&
-            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir/kafka_ingestion &&
+            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export MINIO_ENDPOINT=minio:9000 &&
             export MINIO_ACCESS_KEY=admin &&
             export MINIO_SECRET_KEY=password123 &&
-            python3 /opt/spark/work-dir/kafka_ingestion/run_mock.py
+            python3 -m ingest.facebook.main --mode mock
         """
     )
 
