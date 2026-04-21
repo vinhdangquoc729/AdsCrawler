@@ -1,9 +1,5 @@
 # Hướng dẫn CI/CD và Viết Test cho nhóm
 
-> Đọc một lần, làm theo là xong. Không cần kinh nghiệm trước.
-
----
-
 ## 1. Quy trình làm việc hàng ngày
 
 **Mỗi khi bắt đầu code:**
@@ -137,5 +133,3 @@ def test_tinh_cpc():
 | Config Airflow DAG | Đã có `test_dag.py` tự động kiểm tra |
 | Docker Compose / K8s YAML | CI validate tự động |
 | SQL ClickHouse | Không cần test |
-
-> Không ai bắt buộc phải viết test nhiều. 2-3 test cho phần mình code là đủ để báo cáo.
