@@ -2,11 +2,11 @@
 
 ## Yêu cầu hệ thống
 
-| Thứ | Yêu cầu tối thiểu |
+|  | Yêu cầu tối thiểu |
 |-----|-------------------|
 | RAM | **12 GB trở lên** (stack nặng: Kafka + Spark + Airflow + ClickHouse + Superset) |
 | CPU | 4 nhân trở lên |
-| Dung lượng ổ cứng | 20 GB trống |
+| Dung lượng ổ cứng | **Tối thiểu 20 GB** trống |
 | Docker Desktop | Đã cài, đang chạy |
 | WSL2 | Đã bật (thường có sẵn khi cài Docker Desktop) |
 
@@ -61,7 +61,6 @@ kubeconfig: Configured
 ---
 
 ## Bước 3: Build custom Docker images
-
 Dự án dùng 2 image tự build (không có sẵn trên Docker Hub):
 
 ```bash
@@ -69,9 +68,6 @@ Dự án dùng 2 image tự build (không có sẵn trên Docker Hub):
 docker build -f Dockerfile.airflow -t mkt_airflow:latest .
 docker build -f Dockerfile.superset -t mkt_superset:latest .
 ```
-
-> **Tại sao phải build riêng?**
-> Airflow và Superset cần cài thêm thư viện Python đặc thù của dự án nên không dùng image gốc được.
 
 ---
 
@@ -185,7 +181,7 @@ minikube ip
 # Ví dụ kết quả: 192.168.49.2
 ```
 
-| Service | URL | Tài khoản |
+| Service | URL | Account |
 |---------|-----|-----------|
 | Airflow UI | `http://<minikube-ip>:30082` | admin / password123 |
 | Superset UI | `http://<minikube-ip>:30088` | admin / password123 |

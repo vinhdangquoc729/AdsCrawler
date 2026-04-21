@@ -1,20 +1,15 @@
-# Kubernetes là gì? Giải thích cho nhóm
+# Kubernetes là gì?
+Kubernetes (thường gọi tắt là K8s) là một nền tảng mã nguồn mở để tự động hóa việc triển khai, mở rộng và quản lý các ứng dụng container. Nó giúp bạn chạy nhiều container trên nhiều máy chủ một cách dễ dàng và hiệu quả.
 
-> Tài liệu này dành cho các bạn chưa biết K8s. Mọi thứ được giải thích qua dự án AdsCrawler của nhóm mình.
+## 1. K8s là gì?
 
----
-
-## 1. K8s là gì? (Giải thích đơn giản)
-
-Hãy dùng analogy **nhà hàng**:
+Hãy tưởng tượng bạn có một nhà hàng (ứng dụng của bạn) và bạn cần nhiều đầu bếp (container) để nấu ăn. Docker giúp bạn tạo ra những đầu bếp này, nhưng ai sẽ quản lý họ? Ai sẽ đảm bảo rằng luôn có đủ đầu bếp khi khách đông? Ai sẽ thay thế nếu một đầu bếp bị ốm? Kubernetes chính là người quản lý nhà hàng đó, đảm bảo mọi thứ hoạt động trơn tru.
 
 | | Analogy | Trong thực tế |
 |--|---------|---------------|
 | **Docker** | Đầu bếp nấu một món | Chạy một container |
 | **Docker Compose** | Bếp trưởng điều phối cả bếp trên **1 bàn làm việc** | Chạy nhiều container trên 1 máy |
 | **Kubernetes** | **Chuỗi nhà hàng** tự động mở chi nhánh mới khi đông khách, tự đóng cửa chi nhánh hỏng | Tự động quản lý container trên nhiều máy |
-
-**Với dự án này:** Thầy yêu cầu dùng K8s thay vì chỉ Docker Compose. Về mặt kết quả thì giống nhau — Kafka, Spark, Airflow... đều chạy — nhưng K8s quản lý chuyên nghiệp hơn.
 
 ---
 
@@ -85,36 +80,36 @@ k8s/
 ## 4. Sơ đồ kiến trúc hệ thống
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │           Namespace: marketing           │
-                    │                                         │
+                    ┌────────────────────────────────────────┐
+                    │           Namespace: marketing         │
+                    │                                        │
   Raw JSON files    │   ┌──────────┐     ┌──────────────┐    │
   (mock data)  ─────┼──►│  Kafka   │────►│    Spark     │    │
                     │   │(broker)  │     │  (consumer)  │    │
                     │   └──────────┘     └──────┬───────┘    │
                     │                           │            │
                     │                    ┌──────▼───────┐    │
-                    │                    │   ClickHouse  │    │
-                    │                    │  (warehouse)  │    │
+                    │                    │   ClickHouse │    │
+                    │                    │  (warehouse) │    │
                     │                    └──────┬───────┘    │
                     │                           │            │
                     │   ┌──────────┐     ┌──────▼───────┐    │
                     │   │  MinIO   │     │   Superset   │    │
                     │   │(datalake)│     │(dashboard UI)│    │
                     │   └──────────┘     └──────────────┘    │
-                    │                                         │
-                    │   ┌──────────────────────────────────┐  │
-                    │   │           Airflow                 │  │
-                    │   │  (điều phối toàn bộ pipeline)    │  │
-                    │   │  Webserver (UI) + Scheduler       │  │
-                    │   └──────────────────────────────────┘  │
-                    │                                         │
+                    │                                        │
+                    │   ┌──────────────────────────────────┐ │
+                    │   │           Airflow                │ │
+                    │   │  (điều phối toàn bộ pipeline)    │ │
+                    │   │  Webserver (UI) + Scheduler      │ │
+                    │   └──────────────────────────────────┘ │
+                    │                                        │
                     │   ┌──────────┐   ┌──────────────────┐  │
                     │   │ Postgres │   │   Spark Master   │  │
                     │   │(metadata │   │   + Worker       │  │
                     │   │ Airflow) │   │                  │  │
                     │   └──────────┘   └──────────────────┘  │
-                    └─────────────────────────────────────────┘
+                    └────────────────────────────────────────┘
 ```
 
 ---
@@ -123,10 +118,10 @@ k8s/
 
 | Service | Vai trò trong dự án |
 |---------|---------------------|
-| **Kafka** | "Đường ống dữ liệu" — nhận dữ liệu thô từ script mock, đưa vào topic `topic_fb_raw` để Spark xử lý |
+| **Kafka** | "Đường ống dữ liệu" — nhận dữ liệu thô từ script mock, đưa vào topic để Spark xử lý |
 | **Spark Master** | Não bộ của cụm Spark, điều phối công việc xử lý dữ liệu |
-| **Spark Worker** | "Tay chân" của Spark, thực sự đọc từ Kafka, xử lý, và ghi vào ClickHouse + MinIO |
-| **ClickHouse** | Database phân tích (OLAP) — lưu dữ liệu đã xử lý, phục vụ query nhanh cho Superset |
+| **Spark Worker** | Tay chân của Spark, thực sự đọc từ Kafka, xử lý, và ghi vào ClickHouse + MinIO |
+| **ClickHouse** | Database lưu dữ liệu đã xử lý, phục vụ query nhanh cho Superset |
 | **MinIO** | Kho lưu trữ file dạng Parquet (như S3 local) — backup dữ liệu từ Spark |
 | **Airflow Webserver** | Giao diện web để xem và quản lý các DAG (pipeline) |
 | **Airflow Scheduler** | Chạy ngầm, trigger DAG đúng lịch |
