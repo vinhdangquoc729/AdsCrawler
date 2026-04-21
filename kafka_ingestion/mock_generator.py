@@ -139,7 +139,6 @@ class MockGenerator:
         base_seed = options.get('seed', 'ads_crawler_premium_v3')
 
         self.export_buffer = {}
-        skeleton_rng = random.Random(base_seed)
         dates = self._get_dates_in_range(start_date, end_date)
         total_days = len(dates)
 
