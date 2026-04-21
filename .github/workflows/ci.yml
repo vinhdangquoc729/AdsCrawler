@@ -62,7 +62,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install pytest apache-airflow
+        run: pip install pytest apache-airflow==2.7.1
 
       - name: Run tests
         run: pytest tests/ -v
