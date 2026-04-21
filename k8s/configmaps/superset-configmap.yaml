@@ -9,3 +9,4 @@ data:
   ADMIN_FIRSTNAME: Superset
   ADMIN_LASTNAME: Admin
   SQLALCHEMY_DATABASE_URI: sqlite:////opt/superset/data/superset.db
+  ADMIN_PASSWORD: "password123"
