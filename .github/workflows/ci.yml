@@ -38,18 +38,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Dry-run apply all manifests
+      - name: Install kubeconform
         run: |
-          kubectl apply --dry-run=client --validate=false -f k8s/namespace.yaml
-          kubectl apply --dry-run=client --validate=false -f k8s/configmaps/
-          kubectl apply --dry-run=client --validate=false -f k8s/secrets/
-          kubectl apply --dry-run=client --validate=false -f k8s/pvc/
-          kubectl apply --dry-run=client --validate=false -f k8s/deployments/
-          kubectl apply --dry-run=client --validate=false -f k8s/services/
-          kubectl apply --dry-run=client --validate=false -f k8s/jobs/
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate all manifests
+        run: |
+          kubeconform -strict -summary \
+            k8s/namespace.yaml \
+            k8s/configmaps/ \
+            k8s/secrets/ \
+            k8s/pvc/ \
+            k8s/deployments/ \
+            k8s/services/ \
+            k8s/jobs/
 
   test:
     name: Run Tests
@@ -62,7 +65,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install pytest apache-airflow==2.7.1
+        run: pip install pytest "apache-airflow==2.7.1" "pendulum<3.0"
 
       - name: Run tests
         run: pytest tests/ -v
