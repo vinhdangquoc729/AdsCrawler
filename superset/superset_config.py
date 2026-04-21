@@ -7,7 +7,7 @@ FEATURE_FLAGS = {
 
 # Cấu hình Database kết nối tới SQLite (Lấy linh hoạt từ docker-compose hoặc dùng mặc định)
 SQLALCHEMY_DATABASE_URI = os.environ.get(
-    'SQLALCHEMY_DATABASE_URI', 
+    'SQLALCHEMY_DATABASE_URI',
     'sqlite:////app/superset_home/superset.db'
 )
 

@@ -74,7 +74,7 @@ def main():
         .trigger(availableNow=True) \
         .option("checkpointLocation", "s3a://marketing-datalake/checkpoints/data_warehouse_router/") \
         .start()
-    
+
     # wait for any stream to finish (in this case, the availableNow stream will terminate after processing all data)
 
     spark.streams.awaitAnyTermination()
