@@ -1,8 +1,6 @@
 # kafka_ingestion/mock_generator.py
 
 import random
-import uuid
-import os
 import hashlib
 import math
 from datetime import datetime, timedelta
@@ -40,10 +38,11 @@ class MockGenerator:
         ]
     }
 
-    def __init__(self, endpoint=None, access_key=None, secret_key=None):
+    def __init__(self, endpoint=None, access_key=None, secret_key=None, enable_xlsx_buffer=False):
         self.minio_client = MinioClient(endpoint, access_key, secret_key)
         self.rng = random.Random()
         self.export_buffer = {}
+        self.enable_xlsx_buffer = enable_xlsx_buffer
 
     def _get_deterministic_id(self, seed_str, prefix="id"):
         h = hashlib.md5(seed_str.encode()).hexdigest()
@@ -106,18 +105,19 @@ class MockGenerator:
 
     def _sum_metrics(self, target, source):
         keys = [
-            "spend", "impressions", "reach", "clicks", "messagingFirstReply", 
-            "newMessagingConnections", "postComments", "linkClicks", 
-            "landingPageViews", "thruPlay", "videoViewsP25", "videoViewsP50", 
-            "videoViewsP75", "videoViewsP95", "videoViewsP100", "postSaves", 
+            "spend", "impressions", "reach", "clicks", "messagingFirstReply",
+            "newMessagingConnections", "postComments", "linkClicks",
+            "landingPageViews", "thruPlay", "videoViewsP25", "videoViewsP50",
+            "videoViewsP75", "videoViewsP95", "videoViewsP100", "postSaves",
             "postShares", "photoViews", "postEngagements", "postReactions", "pageLikes"
         ]
         for k in keys: target[k] = target.get(k, 0) + source.get(k, 0)
 
     def _upload_chunk(self, table_name, data):
         if not data: return
-        if table_name not in self.export_buffer: self.export_buffer[table_name] = []
-        self.export_buffer[table_name].extend(data)
+        if self.enable_xlsx_buffer:
+            if table_name not in self.export_buffer: self.export_buffer[table_name] = []
+            self.export_buffer[table_name].extend(data)
         result = self.minio_client.upload_json(table_name, data)
         # Quiet upload logging to avoid cluttering stdout
         if not result["success"]: print(f"   ... FAILED upload {table_name}: {result['error']}")
@@ -137,12 +137,11 @@ class MockGenerator:
         acc_cnt, cam_cnt = options.get('accountCount', 1), options.get('campaignCount', 2)
         set_per_cam, ad_per_set = options.get('adsetPerCampaign', 2), options.get('adPerAdset', 3)
         base_seed = options.get('seed', 'ads_crawler_premium_v3')
-        
+
         self.export_buffer = {}
-        skeleton_rng = random.Random(base_seed)
         dates = self._get_dates_in_range(start_date, end_date)
         total_days = len(dates)
-        
+
         # 1. Global Creative Pool (20 items)
         creative_pool = []
         for p in range(20):
@@ -151,11 +150,11 @@ class MockGenerator:
                 "id": self._get_deterministic_id(p_seed, "cr"),
                 "name": f"Visual Asset: {self._get_random_name('ad', p_seed)}"
             })
-        
+
         # 2. Skeleton Setup
         accounts = []
         total_accounts, total_campaigns, total_adsets, total_ads = 0, 0, 0, 0
-        
+
         for i in range(acc_cnt):
             acc_seed = f"{base_seed}_acc_{i}"
             acc_id = self._get_deterministic_id(acc_seed, "act")
@@ -168,12 +167,12 @@ class MockGenerator:
                 for k in range(set_per_cam):
                     set_seed = f"{cam_seed}_s_{k}"
                     set_name = self._get_random_name("adset", set_seed)
-                    
+
                     # Properties seeding
                     set_prop_rng = random.Random(set_seed)
                     start_idx = set_prop_rng.randint(0, total_days - 1)
                     duration = set_prop_rng.randint(min(max(1, int(total_days * 0.3)), total_days - start_idx), total_days - start_idx)
-                    
+
                     adset = {
                         "id": self._get_deterministic_id(set_seed, "set"), "name": set_name,
                         "daily_budget": set_prop_rng.randint(100000, 1000000), "start_date": dates[start_idx], "end_date": dates[start_idx + duration - 1],
@@ -184,7 +183,7 @@ class MockGenerator:
                         ad_seed = set_seed + f"_a_{l}"
                         ad_prop_rng = random.Random(ad_seed)
                         creative = creative_pool[ad_prop_rng.randint(0, len(creative_pool)-1)]
-                        
+
                         ad_start_idx = ad_prop_rng.randint(start_idx, start_idx + duration - 1)
                         ad_dur = ad_prop_rng.randint(1, start_idx + duration - ad_start_idx)
                         adset["ads"].append({
@@ -198,12 +197,12 @@ class MockGenerator:
                 acc["campaigns"].append(cam)
             accounts.append(acc)
 
-        print(f"Mock Generator: Skeleton Built! Summary:")
+        print("Mock Generator: Skeleton Built! Summary:")
         print(f"   >>> Total Accounts:  {total_accounts}")
         print(f"   >>> Total Campaigns: {total_campaigns}")
         print(f"   >>> Total Ad Sets:   {total_adsets}")
         print(f"   >>> Total Ad Entities: {total_ads}")
-        print(f"   ----------------------------------------")
+        print("   ----------------------------------------")
 
         ad_perf_map, adset_perf_map, campaign_perf_map = {}, {}, {}
         TABLES = {
@@ -227,41 +226,41 @@ class MockGenerator:
                         if not (adset["start_date"] <= date <= adset["end_date"]): continue
                         for ad in adset["ads"]:
                             if not (ad["start_date"] <= date <= ad["end_date"]): continue
-                            
+
                             # Logarithmic CPM Inflation (Diminishing Returns)
                             spend = round(daily_rng.uniform(0.1, 0.4) * (adset["daily_budget"] / ad_per_set), 2)
                             inflation = 1 + math.log10(max(1, spend / 50000))
-                            
+
                             quality = ad["quality_multiplier"]
                             base_cpm = daily_rng.uniform(40000, 150000)
                             cpm = base_cpm * seasonality * inflation / quality
-                            
+
                             impressions = max(1, int((spend / max(1, cpm)) * 1000))
                             ctr = 0.015 * quality * daily_rng.uniform(0.8, 1.2)
                             clicks = int(impressions * ctr)
-                            
+
                             # Strict Waterfall Funnel
                             link_click_ratio = daily_rng.uniform(0.65, 0.85)
                             link_clicks = int(clicks * link_click_ratio)
-                            
+
                             landing_page_views = int(link_clicks * daily_rng.uniform(0.7, 0.9))
                             messaging_first_reply = int(clicks * daily_rng.uniform(0.05, 0.15) * quality)
                             new_messaging_connections = int(messaging_first_reply * daily_rng.uniform(0.8, 0.95))
-                            
+
                             post_comments = int(clicks * daily_rng.uniform(0.02, 0.1) * quality)
                             post_shares = int(clicks * daily_rng.uniform(0.01, 0.05))
                             post_saves = int(clicks * daily_rng.uniform(0.02, 0.08))
                             post_reactions = int(clicks * daily_rng.uniform(0.1, 0.3) * quality)
                             photo_views = int(clicks * daily_rng.uniform(0.2, 0.5))
                             page_likes = int(clicks * daily_rng.uniform(0.01, 0.04))
-                            
+
                             v25 = int(impressions * daily_rng.uniform(0.08, 0.15) * quality)
                             v50 = int(v25 * daily_rng.uniform(0.3, 0.5))
                             v75 = int(v50 * daily_rng.uniform(0.4, 0.6))
                             v95 = int(v75 * daily_rng.uniform(0.5, 0.7))
                             v100 = int(v95 * daily_rng.uniform(0.7, 0.9))
                             thru_play = int(v25 * daily_rng.uniform(0.5, 0.8))
-                            
+
                             post_engagements = clicks + post_comments + post_shares + post_reactions + post_saves + photo_views
 
                             ad_data = {
@@ -270,11 +269,11 @@ class MockGenerator:
                                 "date_start": date, "date_stop": date, "user_id": user_id, "spend": spend, "impressions": impressions,
                                 "reach": int(impressions * 0.95), "clicks": clicks, "linkClicks": link_clicks,
                                 "landingPageViews": landing_page_views, "messagingFirstReply": messaging_first_reply,
-                                "newMessagingConnections": new_messaging_connections, "postComments": post_comments, 
+                                "newMessagingConnections": new_messaging_connections, "postComments": post_comments,
                                 "postShares": post_shares, "postSaves": post_saves, "postReactions": post_reactions, "photoViews": photo_views,
                                 "pageLikes": page_likes, "postEngagements": post_engagements,
                                 "creative_id": ad["creative_id"], "creative_name": ad["creative_name"],
-                                "thruPlay": thru_play, "videoViewsP25": v25, "videoViewsP50": v50, 
+                                "thruPlay": thru_play, "videoViewsP25": v25, "videoViewsP50": v50,
                                 "videoViewsP75": v75, "videoViewsP95": v95, "videoViewsP100": v100,
                                 "daily_budget": adset["daily_budget"]
                             }
@@ -283,13 +282,13 @@ class MockGenerator:
                             weights = self._get_age_gender_weights(daily_rng, adset["targeting_bias"])
                             dist_keys = [
                                 "spend", "impressions", "reach", "clicks", "linkClicks", "landingPageViews",
-                                "messagingFirstReply", "newMessagingConnections", "postComments", 
-                                "postShares", "postSaves", "postReactions", "photoViews", 
-                                "pageLikes", "postEngagements", "thruPlay", 
+                                "messagingFirstReply", "newMessagingConnections", "postComments",
+                                "postShares", "postSaves", "postReactions", "photoViews",
+                                "pageLikes", "postEngagements", "thruPlay",
                                 "videoViewsP25", "videoViewsP50", "videoViewsP75", "videoViewsP95", "videoViewsP100"
                             ]
                             remainders = {k: ad_data.get(k, 0) for k in dist_keys}
-                            
+
                             for idx, (age, gender, weight) in enumerate(weights):
                                 row_data = {**ad_data, "age": age, "gender": gender}
                                 for k in dist_keys:
@@ -303,12 +302,12 @@ class MockGenerator:
 
                             for m, target_map in [("id", ad_perf_map), (adset["id"], adset_perf_map), (cam["id"], campaign_perf_map)]:
                                 k = ad[m] if m == "id" else m
-                                if k not in target_map: 
-                                    target_map[k] = {**ad_data, "id": k, "name": ad[m] if m == "id" else (adset["name"] if m == adset["id"] else cam["name"]), 
-                                                     "date_start": ad["start_date"] if m == "id" else (adset["start_date"] if m == adset["id"] else dates[0]), 
+                                if k not in target_map:
+                                    target_map[k] = {**ad_data, "id": k, "name": ad[m] if m == "id" else (adset["name"] if m == adset["id"] else cam["name"]),
+                                                     "date_start": ad["start_date"] if m == "id" else (adset["start_date"] if m == adset["id"] else dates[0]),
                                                      "date_stop": ad["end_date"] if m == "id" else (adset["end_date"] if m == adset["id"] else dates[-1])}
                                 else: self._sum_metrics(target_map[k], ad_data)
-                            
+
                             for k, t_map in [(adset["id"], day_adset_map), (cam["id"], day_campaign_map), (acc["id"], day_account_map)]:
                                 if k not in t_map: t_map[k] = {**ad_data, "id": k, "name": adset["name"] if k == adset["id"] else (cam["name"] if k == cam["id"] else acc["name"])}
                                 else: self._sum_metrics(t_map[k], ad_data)

@@ -25,28 +25,42 @@ with DAG(
     t0_mock_generation = BashOperator(
         task_id='mock_generation_task',
         bash_command="""
-            cd /opt/spark/work-dir && \ 
-            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir/kafka_ingestion && \
-            export MINIO_ENDPOINT=minio:9000 && \
-            export MINIO_ACCESS_KEY=admin && \
-            export MINIO_SECRET_KEY=password123 && \
+            pip install --quiet minio openpyxl pandas &&
+            cd /opt/spark/work-dir &&
+            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir/kafka_ingestion &&
+            export MINIO_ENDPOINT=minio:9000 &&
+            export MINIO_ACCESS_KEY=admin &&
+            export MINIO_SECRET_KEY=password123 &&
             python3 /opt/spark/work-dir/kafka_ingestion/run_mock.py
         """
     )
 
-    t1_spark_processor = BashOperator(
-        task_id='spark_batch_processor',
+    t1_minio_ingest = BashOperator(
+        task_id='minio_to_clickhouse_ingest',
         bash_command="""
             spark-submit --master spark://spark-master:7077 \
-            --jars /opt/airflow/jars/spark-sql-kafka.jar,\
-/opt/airflow/jars/kafka-clients.jar,\
-/opt/airflow/jars/clickhouse-jdbc.jar,\
+            --jars /opt/airflow/jars/clickhouse-jdbc.jar,\
 /opt/airflow/jars/hadoop-aws.jar,\
 /opt/airflow/jars/aws-java-sdk-bundle.jar,\
-/opt/airflow/jars/commons-pool2.jar,\
-/opt/airflow/jars/spark-token-provider-kafka.jar \
-            /opt/spark/work-dir/spark_consumer/main.py
+/opt/airflow/jars/commons-pool2.jar \
+            /opt/spark/work-dir/spark_consumer/minio_ingest.py
         """
     )
 
-    t0_mock_generation >> t1_spark_processor
+    # t2_spark_processor = BashOperator(
+    #     task_id='spark_batch_processor',
+    #     bash_command="""
+    #         spark-submit --master spark://spark-master:7077 \
+    #         --jars /opt/airflow/jars/spark-sql-kafka.jar,\
+    # /opt/airflow/jars/kafka-clients.jar,\
+    # /opt/airflow/jars/clickhouse-jdbc.jar,\
+    # /opt/airflow/jars/hadoop-aws.jar,\
+    # /opt/airflow/jars/aws-java-sdk-bundle.jar,\
+    # /opt/airflow/jars/commons-pool2.jar,\
+    # /opt/airflow/jars/spark-token-provider-kafka.jar \
+    #         /opt/spark/work-dir/spark_consumer/main.py
+    #     """
+    # )
+
+    # t0_mock_generation >> t1_minio_ingest >> t2_spark_processor
+    t0_mock_generation >> t1_minio_ingest

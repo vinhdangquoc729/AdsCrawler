@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+  namespace: marketing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-webserver
+  template:
+    metadata:
+      labels:
+        app: airflow-webserver
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:13
+          command: ["sh", "-c", "until pg_isready -h postgres -U airflow; do sleep 2; done"]
+      containers:
+        - name: airflow-webserver
+          image: mkt_airflow:latest
+          imagePullPolicy: IfNotPresent
+          command: ["airflow", "webserver"]
+          envFrom:
+            - configMapRef:
+                name: airflow-config
+            - secretRef:
+                name: airflow-secret
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - mountPath: /opt/airflow/dags
+              name: dags
+      volumes:
+        - name: dags
+          hostPath:
+            path: /opt/airflow/dags

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-config
+  namespace: marketing
+data:
+  CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"

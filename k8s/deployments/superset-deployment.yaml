@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+  namespace: marketing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      containers:
+        - name: superset
+          image: mkt_superset:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: superset-config
+            - secretRef:
+                name: airflow-secret
+          ports:
+            - containerPort: 8088
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - mountPath: /opt/superset/data
+              name: superset-storage
+          command:
+            - /bin/sh
+            - -c
+            - |
+              superset fab create-admin \
+                --username $ADMIN_USERNAME --firstname $ADMIN_FIRSTNAME \
+                --lastname $ADMIN_LASTNAME --email $ADMIN_EMAIL \
+                --password $ADMIN_PASSWORD 2>/dev/null || true &&
+              superset db upgrade &&
+              superset init &&
+              superset run -p 8088 --with-threads --host 0.0.0.0
+      volumes:
+        - name: superset-storage
+          persistentVolumeClaim:
+            claimName: superset-pvc

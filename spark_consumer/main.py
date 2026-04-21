@@ -57,7 +57,7 @@ def main():
         )
 
     # archive raw data to datalake
-    archive_query = base_stream.writeStream \
+    base_stream.writeStream \
         .format("parquet") \
         .option("path", "s3a://marketing-datalake/raw_zone/") \
         .option("checkpointLocation", "s3a://marketing-datalake/checkpoints/raw_zone_archive/") \
@@ -69,12 +69,12 @@ def main():
     def route_data_to_dwh(df, epoch_id):
         fb_processor.process_batch(df, epoch_id)
 
-    dwh_query = base_stream.writeStream \
+    base_stream.writeStream \
         .foreachBatch(route_data_to_dwh) \
         .trigger(availableNow=True) \
         .option("checkpointLocation", "s3a://marketing-datalake/checkpoints/data_warehouse_router/") \
         .start()
-    
+
     # wait for any stream to finish (in this case, the availableNow stream will terminate after processing all data)
 
     spark.streams.awaitAnyTermination()

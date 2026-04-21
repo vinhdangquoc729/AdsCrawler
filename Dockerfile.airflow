@@ -9,6 +9,7 @@ RUN apt-get update && \
 
 ENV SPARK_VERSION=3.5.1
 ENV HADOOP_VERSION=3
+ENV SPARK_PACKAGE=spark-3.5.1-bin-hadoop3
 COPY ${SPARK_PACKAGE}.tgz* /tmp/
 
 RUN if [ -f /tmp/${SPARK_PACKAGE}.tgz ]; then \

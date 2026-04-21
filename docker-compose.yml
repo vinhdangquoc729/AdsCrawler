@@ -84,10 +84,13 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_EMAIL=admin@fab.org
       - ADMIN_PASSWORD=password123
+      - SQLALCHEMY_DATABASE_URI=sqlite:////opt/superset/data/superset.db
     depends_on:
       - clickhouse
       - kafka
       - minio
+    volumes:
+      - superset_data:/opt/superset/data
     networks:
       - marketing-net
     entrypoint: >
@@ -142,7 +145,8 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     command: >
       bash -c "
-      pip install confluent-kafka requests && 
+      mkdir -p /opt/airflow/logs/scheduler &&
+      pip install confluent-kafka requests &&
       airflow db migrate &&
       airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password password123 || true
       "
@@ -160,7 +164,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow
-    image: apache/airflow:2.7.1
+    image: mkt_airflow:latest
     container_name: mkt_airflow_webserver
     depends_on:
       postgres:
@@ -191,11 +195,7 @@ services:
       - ./airflow/.ivy2:/home/airflow/.ivy2
     ports:
       - "8082:8080"
-    command: >
-        bash -c "
-        pip install confluent-kafka requests && 
-        airflow webserver
-        "
+    command: airflow webserver
     networks:
       - marketing-net
 
@@ -204,7 +204,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.airflow  
-    image: apache/airflow:2.7.1
+    image: mkt_airflow:latest
     container_name: mkt_airflow_scheduler
     depends_on:
       postgres:
@@ -229,14 +229,11 @@ services:
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
       - ./airflow/.ivy2:/home/airflow/.ivy2
-    command: >
-        bash -c "
-        pip install confluent-kafka requests && 
-        airflow scheduler
-        "
+    command: airflow scheduler
     networks:
       - marketing-net
 
 volumes:
   clickhouse_data:
   minio_data:
+  superset_data:

@@ -1,0 +1,1 @@
+clickhousedb://admin:password123@mkt_clickhouse:8123/marketing_db
