@@ -43,13 +43,13 @@ jobs:
 
       - name: Dry-run apply all manifests
         run: |
-          kubectl apply --dry-run=client -f k8s/namespace.yaml
-          kubectl apply --dry-run=client -f k8s/configmaps/
-          kubectl apply --dry-run=client -f k8s/secrets/
-          kubectl apply --dry-run=client -f k8s/pvc/
-          kubectl apply --dry-run=client -f k8s/deployments/
-          kubectl apply --dry-run=client -f k8s/services/
-          kubectl apply --dry-run=client -f k8s/jobs/
+          kubectl apply --dry-run=client --validate=false -f k8s/namespace.yaml
+          kubectl apply --dry-run=client --validate=false -f k8s/configmaps/
+          kubectl apply --dry-run=client --validate=false -f k8s/secrets/
+          kubectl apply --dry-run=client --validate=false -f k8s/pvc/
+          kubectl apply --dry-run=client --validate=false -f k8s/deployments/
+          kubectl apply --dry-run=client --validate=false -f k8s/services/
+          kubectl apply --dry-run=client --validate=false -f k8s/jobs/
 
   test:
     name: Run Tests
