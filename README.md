@@ -4,7 +4,7 @@ A Modern Data Stack for Facebook Ads analytics. Generates deterministic mock ad 
 
 ## Architecture
 
-<img width="1565" height="647" alt="image" src="https://github.com/user-attachments/assets/87539a83-c562-4959-96d6-9aa9829b2f31" />
+<img width="1582" height="639" alt="image" src="https://github.com/user-attachments/assets/dfa05612-0c5d-4faf-87d2-c8d9405f6569" />
 
 **11 Docker containers total:**
 
