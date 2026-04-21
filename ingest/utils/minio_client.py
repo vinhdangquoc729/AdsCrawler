@@ -13,7 +13,7 @@ class MinioClient:
         self.access_key = access_key or os.getenv('MINIO_ACCESS_KEY', 'admin')
         self.secret_key = secret_key or os.getenv('MINIO_SECRET_KEY', 'password123')
         self.secure = secure
-        
+
         self.client = Minio(
             self.endpoint,
             access_key=self.access_key,
@@ -38,22 +38,22 @@ class MinioClient:
         <tableName>/<YYYY>/<MM>/<DD>/<HH>/<mm>/<userId>_<timestamp>_<uuid>.json
         """
         self.ensure_bucket()
-        
+
         import uuid
         now = datetime.now()
         unique_id = uuid.uuid4().hex[:8]
-        
+
         path = (
             f"{table_name}/"
             f"{now.year}/{now.month:02d}/{now.day:02d}/"
             f"{now.hour:02d}/{now.minute:02d}/"
             f"{user_id}_{int(now.timestamp())}_{unique_id}.json"
         )
-        
+
         try:
             json_data = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')
             data_stream = io.BytesIO(json_data)
-            
+
             self.client.put_object(
                 self.bucket_name,
                 path,

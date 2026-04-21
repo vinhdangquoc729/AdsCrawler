@@ -9,7 +9,7 @@ import argparse
 
 def run_ingestion(mode="mock", start_date=None, end_date=None, options=None):
     options = options or {}
-    
+
     # Cấu hình ngày mặc định: 20 ngày gần nhất nếu không có
     if not end_date:
         end_date = datetime.now().strftime("%Y-%m-%d")
@@ -31,20 +31,20 @@ def run_ingestion(mode="mock", start_date=None, end_date=None, options=None):
 
         try:
             generator.generate_consistent_suite(start_date, end_date, options={"seed": seed, **options})
-            
+
             if options.get('xlsx'):
                 print(">>> Hoàn tất sinh dữ liệu. Đang xuất file Excel...")
                 generator.export_to_xlsx("mock_data_report.xlsx")
-            
+
             print(">>> SUCCESS: Dữ liệu đã sẵn sàng trên MinIO")
         except Exception as e:
             print(f"!!! Lỗi khi sinh dữ liệu: {e}")
-    
+
     elif mode == "real":
-        print(f">>> Bắt đầu lấy dữ liệu THẬT từ Facebook...")
+        print(">>> Bắt đầu lấy dữ liệu THẬT từ Facebook...")
         crawler = FacebookCrawler()
         crawler.fetch_real_data(start_date, end_date)
-    
+
     else:
         print(f"!!! Mode '{mode}' không hợp lệ. Sử dụng 'mock' hoặc 'real'.")
 
@@ -57,9 +57,9 @@ def main():
     parser.add_argument("--start-date", type=str, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", type=str, help="End date (YYYY-MM-DD)")
     parser.add_argument("--seed", type=str, default="mkt_bigdata_seed_2026", help="Seed for mock data")
-    
+
     args = parser.parse_args()
-    
+
     options = {
         "xlsx": args.xlsx,
         "days": args.days,
@@ -69,7 +69,7 @@ def main():
         "adsetPerCampaign": 5,
         "adPerAdset": 5
     }
-    
+
     run_ingestion(mode=args.mode, start_date=args.start_date, end_date=args.end_date, options=options)
 
 if __name__ == "__main__":
