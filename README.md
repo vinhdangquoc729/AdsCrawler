@@ -1,70 +1,102 @@
-# Marketing Data Pipeline (AdsCrawler Test)
+# Marketing Analytics Pipeline
 
-This project implements an automated, end-to-end Modern Data Stack for marketing analytics. It orchestrates the flow of data from raw JSON sources into a distributed infrastructure comprising a Message Broker, Data Lake, and Data Warehouse.
+A Modern Data Stack for Facebook Ads analytics. Generates deterministic mock ad performance data, lands it in a data lake, transforms it with Spark, and serves it through a ClickHouse data warehouse to Superset dashboards.
 
-## 1. System Architecture
+## Architecture
+
 <img width="1565" height="647" alt="image" src="https://github.com/user-attachments/assets/87539a83-c562-4959-96d6-9aa9829b2f31" />
 
-The pipeline is composed of 11 Docker containers working in synchronization:
-- Orchestration: Apache Airflow (Webserver, Scheduler, and Init) manages the workflow.
-- Data Ingestion: A Python-based Kafka Producer that crawls raw files.
-- Message Broker: Apache Kafka (KRaft mode) handles real-time data streams.
-- Processing Engine: Apache Spark (Master and Worker) performs ETL and schema mapping.
-- Data Warehouse: ClickHouse stores processed data for high-performance analytics.
-- Visualization: Apache Superset provides dashboards for marketing insights.
+**11 Docker containers total:**
 
-## 2. Project Structure
-The project is organized into modular components as seen in the repository:
+| Container | Role |
+|---|---|
+| `mkt_airflow_webserver` | DAG UI & trigger |
+| `mkt_airflow_scheduler` | Daily schedule runner |
+| `mkt_airflow_init` | One-shot DB migration |
+| `mkt_spark_master` | Spark cluster master |
+| `mkt_spark_worker` | Spark executor |
+| `mkt_clickhouse` | Columnar data warehouse |
+| `mkt_minio` | S3-compatible data lake |
+| `mkt_minio_init` | One-shot bucket creation |
+| `mkt_kafka` | Message broker (KRaft mode) |
+| `mkt_superset` | BI dashboards |
+| `mkt_postgres` | Airflow metadata DB |
+
+## Data Pipeline
+
+The `marketing_data_pipeline` DAG runs two tasks in sequence:
+
+**Task 1 — `mock_generation_task`**
+
+Runs `kafka_ingestion/run_mock.py`. Generates deterministic mock Facebook Ads data and uploads 8 JSON files to MinIO:
+
+| MinIO Path | Content |
+|---|---|
+| `fad_ad_daily_report/` | Ad-level daily performance (primary source) |
+| `fad_age_gender_detailed_report/` | Same data broken down by age/gender |
+| `fad_adset_daily_report/` | Ad set level aggregations |
+| `fad_campaign_daily_report/` | Campaign level aggregations |
+| `fad_account_daily_report/` | Account level aggregations |
+| `fad_ad_performance_report/` | Lifetime ad performance |
+| `fad_adset_performance_report/` | Lifetime ad set performance |
+| `fad_campaign_overview_report/` | Lifetime campaign performance |
+
+Each file lands at: `{table}/{YYYY}/{MM}/{DD}/{HH}/{mm}/{user}_{timestamp}_{uuid}.json`
+
+**Task 2 — `minio_to_clickhouse_ingest`**
+
+Submits `spark_consumer/minio_ingest.py` to the Spark cluster. Reads from MinIO and loads into ClickHouse using JDBC.
+
+## Project Structure
 
 ```
 AdsCrawler_test/
 ├── airflow/
-│   ├── dags/             # Airflow DAG definitions (mkt_pipeline_dag.py)
-│   ├── logs/             # Operational logs
-│   └── .ivy2/            # Cached Spark dependencies
-├── kafka_ingestion/      # Python module for loading data into Kafka
-│   ├── base.py           # Producer base class
-│   ├── filecrawler.py    # Sample crawling logic (scanning JSON files), should be extended for real APIs 
-│   └── main.py           # Ingestion entry point
-├── spark_consumer/       # Spark processing module
-│   ├── base_processor.py # JDBC ClickHouse writer
-│   ├── facebook_processor.py # Sample processor for Facebook Ads data, should be extended for other sources
-│   └── main.py           # Spark application entry point
-├── Dockerfile.airflow    # Custom Airflow image with Java/Spark/JARs
-├── Dockerfile.superset   # Custom Superset image with ClickHouse driver
-└── docker-compose.yml    # Main infrastructure configuration
+│   └── dags/
+│       └── mkt_pipeline_dag.py     # DAG definition
+├── kafka_ingestion/
+│   ├── mock_generator.py           # Deterministic mock data generator
+│   ├── minio_client.py             # MinIO upload client
+│   ├── run_mock.py                 # Entry point for mock generation
+│   ├── filecrawler.py              # File-based Kafka producer (for real data)
+│   └── main.py                     # Kafka ingestion entry point
+├── spark_consumer/
+│   ├── minio_ingest.py             # MinIO → ClickHouse Spark job (active)
+│   ├── facebook_processor.py       # Kafka → ClickHouse processor (future)
+│   ├── base_processor.py           # JDBC writer base class
+│   └── main.py                     # Kafka consumer entry point (future)
+├── superset/
+│   └── SQL_dashboard.sql           # Dashboard query definitions
+├── init_clickhouse.sql             # ClickHouse table DDL
+├── schema_visualization.md         # ERD diagram
+├── Dockerfile.airflow              # Airflow image with Java/Spark/JARs
+├── Dockerfile.superset             # Superset image with ClickHouse driver
+└── docker-compose.yml
 ```
 
-## 3. Installation & Setup
-**Prerequisites**
-- Docker Desktop installed and configured with WSL2.
-- System Resources: Minimum 12GB RAM allocated to Docker.
+## Setup
 
-**Step 1: Initialize Folders**
-Ensure the local directories exist for volume mapping:
+**Prerequisites:** Docker Desktop with WSL2, minimum 12 GB RAM allocated to Docker.
+
+**1. Create required directories**
 ```bash
 mkdir -p airflow/dags airflow/logs airflow/plugins airflow/.ivy2
 ```
 
-**Step 2: Build and Deploy**
-Build the custom images and start all services:
-
+**2. Build and start all services**
 ```bash
 docker-compose up -d --build
 ```
-**Important Notes:** Currently, there is a problem with downloading Spark dependencies during the build phase, which may cause the build to fail. To mitigate this, you can pre-download the [Spark package](https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz) and place it in the project root.
 
-**Step 3: Verify Initialization**
-Monitor the Airflow initialization process:
+> If the build fails downloading Spark dependencies, pre-download [spark-3.5.1-bin-hadoop3.tgz](https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz) and place it in the project root.
 
+**3. Wait for Airflow initialization to complete**
 ```bash
 docker logs -f mkt_airflow_init
 ```
+Wait until the container exits with code 0.
 
-**Step 4: Infrastructure Setup (Kafka Topics)**
-Before running the pipeline for the first time, you must manually create the required Kafka topic so that the Spark consumer can listen to it without errors.
-
-Run the following command from your host terminal:
+**4. Create the Kafka topic**
 ```bash
 docker exec -it mkt_kafka kafka-topics --create \
     --topic topic_fb_raw \
@@ -73,30 +105,22 @@ docker exec -it mkt_kafka kafka-topics --create \
     --replication-factor 1
 ```
 
-The system is ready once this container exits with code 0.
+## Service URLs
 
-## 4. Service Access (Credentials)
-| Service         | URL                       | Username | Password    |
-|-----------------|---------------------------|----------|-------------|
-| Airflow UI      | http://localhost:8082     | admin    | password123 |
-| Superset UI     | http://localhost:8088     | admin    | password123 |
-| MinIO Console   | http://localhost:9006     | admin    | password123 |
-| Spark Master    | http://localhost:8081     | N/A      | N/A         |
-| ClickHouse      | http://localhost:8123     | admin    | password123 |
+| Service | URL | Username | Password |
+|---|---|---|---|
+| Airflow | http://localhost:8082 | admin | password123 |
+| Superset | http://localhost:8088 | admin | password123 |
+| MinIO Console | http://localhost:9006 | admin | password123 |
+| Spark Master | http://localhost:8081 | — | — |
+| ClickHouse HTTP | http://localhost:8123 | admin | password123 |
 
-## 5. Usage Guide
-The pipeline follows a Batch-on-Streaming logic orchestrated by the `marketing_data_pipeline` DAG.
+## Running the Pipeline
 
-### 1. Trigger the DAG: Access the Airflow UI and trigger `marketing_data_pipeline`.
+1. Open Airflow at http://localhost:8082
+2. Enable and trigger the `marketing_data_pipeline` DAG
+3. Task 1 generates mock data and uploads to MinIO (~1 min)
+4. Task 2 runs the Spark job to load ClickHouse (~3-5 min)
+5. Query results in Superset at http://localhost:8088 or directly in ClickHouse
 
-### 2. Data Ingestion (`t1_ingestion`): This task runs `kafka_ingestion/main.py`, which reads local JSON data and pushes it to the Kafka topic `topic_fb_raw`.
-
-### 3. Data Processing (`t2_spark_consumer`): This task submits the Spark job using `spark-submit`.
-
-- Kafka Consumption: Spark reads the stream from Kafka topic `topic_fb_raw`.
-
-- Data Lake Archival: Raw data is partitioned by platform and report type and saved as Parquet in MinIO (`s3a://marketing-datalake/raw_zone/`).
-
-- Warehouse Loading: Data is transformed into a Star Schema and written to ClickHouse tables via JDBC.
-
-- Termination: Using the `.trigger(availableNow=True)` setting, the Spark job processes all available data and terminates, allowing Airflow to mark the task as successful.
+To connect Superset to ClickHouse: **Settings → Database Connections → + Database → ClickHouse** with URI `clickhouse+http://admin:password123@clickhouse:8123/marketing_db`.

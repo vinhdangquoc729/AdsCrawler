@@ -1,0 +1,10 @@
+[lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "E701", "E741"]
+
+exclude = [
+    "airflow/logs",
+    "airflow/plugins",
+    ".ivy2",
+    "sample_data",
+]

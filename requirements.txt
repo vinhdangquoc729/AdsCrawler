@@ -3,3 +3,6 @@ pyspark==3.5.1
 minio
 pandas
 openpyxl
+pytest
+ruff
+pre-commit
