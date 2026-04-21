@@ -49,7 +49,7 @@ ruff check .
 ruff check . --fix
 
 # Check a single file
-ruff check kafka_ingestion/mock_generator.py
+ruff check ingest/facebook/mock.py
 
 # Format code (like black)
 ruff format .
@@ -58,7 +58,7 @@ ruff format .
 ### Reading the output
 
 ```
-kafka_ingestion/mock_generator.py:12:1: F401 `os` imported but unused
+ingest/facebook/mock.py:12:1: F401 `os` imported but unused
 ```
 
 - `F401` — rule code (F = pyflakes)
@@ -106,13 +106,13 @@ ruff....................................................................Failed
 - hook id: ruff
 - files were modified by this hook
 
-kafka_ingestion/mock_generator.py   ← ruff auto-fixed this file
+ingest/facebook/mock.py   ← ruff auto-fixed this file
 ```
 
 When this happens:
 
 ```bash
-git add kafka_ingestion/mock_generator.py   # stage the fixed file
+git add ingest/facebook/mock.py   # stage the fixed file
 git commit -m "feat: add new campaign field"   # commit again — will pass now
 ```
 

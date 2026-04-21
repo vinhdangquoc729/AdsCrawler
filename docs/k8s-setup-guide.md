@@ -72,9 +72,6 @@ docker build -f Dockerfile.superset -t mkt_superset:latest .
 ---
 
 ## Bước 4: Load images vào Minikube
-
-**Đây là bước quan trọng mà nhiều người hay quên!**
-
 Minikube chạy trong một VM riêng biệt, **không thấy** được các Docker image trên máy bạn. Phải "chuyển" image vào bên trong Minikube:
 
 ```bash

@@ -28,7 +28,7 @@ The `marketing_data_pipeline` DAG runs two tasks in sequence:
 
 **Task 1 — `mock_generation_task`**
 
-Runs `kafka_ingestion/run_mock.py`. Generates deterministic mock Facebook Ads data and uploads 8 JSON files to MinIO:
+Runs `python -m ingest.facebook.main --mode mock`. Generates deterministic mock Facebook Ads data and uploads 8 JSON files to MinIO:
 
 | MinIO Path | Content |
 |---|---|
@@ -54,12 +54,13 @@ AdsCrawler_test/
 ├── airflow/
 │   └── dags/
 │       └── mkt_pipeline_dag.py     # DAG definition
-├── kafka_ingestion/
-│   ├── mock_generator.py           # Deterministic mock data generator
-│   ├── minio_client.py             # MinIO upload client
-│   ├── run_mock.py                 # Entry point for mock generation
-│   ├── filecrawler.py              # File-based Kafka producer (for real data)
-│   └── main.py                     # Kafka ingestion entry point
+├── ingest/
+│   ├── facebook/
+│   │   ├── mock.py                 # Deterministic mock data generator
+│   │   ├── main.py                 # Ingestion entry point (mock/real)
+│   │   └── crawler.py              # Facebook Ads crawler
+│   └── utils/
+│       └── minio_client.py         # MinIO upload client
 ├── spark_consumer/
 │   ├── minio_ingest.py             # MinIO → ClickHouse Spark job (active)
 │   ├── facebook_processor.py       # Kafka → ClickHouse processor (future)
@@ -98,11 +99,7 @@ Wait until the container exits with code 0.
 
 **4. Create the Kafka topic**
 ```bash
-docker exec -it mkt_kafka kafka-topics --create \
-    --topic topic_fb_raw \
-    --bootstrap-server localhost:9092 \
-    --partitions 1 \
-    --replication-factor 1
+docker exec -it mkt_kafka kafka-topics --create --topic topic_fb_raw --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
 
 ## Service URLs

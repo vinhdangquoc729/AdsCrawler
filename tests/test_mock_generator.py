@@ -6,13 +6,15 @@ import sys
 import os
 from unittest.mock import MagicMock
 
-# Thêm kafka_ingestion vào path để Python tìm được module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'kafka_ingestion'))
+# Thêm root vào path để Python tìm được module ingest
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Mock MinioClient trước khi import MockGenerator (tránh lỗi kết nối)
 sys.modules['minio_client'] = MagicMock()
+# Cũng mock ingest.utils.minio_client vì facebook/mock.py import từ đó
+sys.modules['ingest.utils.minio_client'] = MagicMock()
 
-from mock_generator import MockGenerator  # noqa: E402
+from ingest.facebook.mock import MockGenerator  # noqa: E402
 
 # Tạo 1 instance dùng chung cho tất cả test
 gen = MockGenerator(None, None, None)

@@ -78,10 +78,10 @@ Nhiều Ads ở các tài khoản khác nhau có thể dùng chung 1 `creative_i
 
 1.  **Chạy sinh dữ liệu**:
     ```powershell
-    python kafka_ingestion/run_mock.py
+    python -m ingest.facebook.main --mode mock
     ```
 2.  **Kiểm tra Excel**: Mở file `mock_data_report.xlsx` để xem số liệu trực quan.
-3.  **Cấu hình**: Chỉnh sửa file `.env` hoặc `run_mock.py` để thay đổi `seed` hoặc `endpoint` MinIO.
+3.  **Cấu hình**: Chỉnh sửa file `.env` hoặc `ingest/facebook/main.py` để thay đổi `seed` hoặc `endpoint` MinIO.
 
 > [!IMPORTANT]
 > Để sinh ra bộ dữ liệu giống hệt lần cũ, hãy giữ nguyên giá trị `seed`, `start_date` và `end_date`.
