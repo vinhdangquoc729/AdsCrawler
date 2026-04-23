@@ -139,9 +139,16 @@ class MockGenerator:
         base_seed = options.get('seed', 'ads_crawler_premium_v3')
 
         self.export_buffer = {}
-        # skeleton_rng = random.Random(base_seed)
         dates = self._get_dates_in_range(start_date, end_date)
-        total_days = len(dates)
+
+
+
+        # Determine which years are involved in the request
+        requested_years = sorted(list(set(int(d.split('-')[0]) for d in dates)))
+
+        # To handle cross-year consistency (campaigns starting in N-1 and ending in N),
+        # we ALWAYS generate the skeleton for the requested years AND their previous years.
+        years_to_generate = sorted(list(set(requested_years) | set(y - 1 for y in requested_years)))
 
         # 1. Global Creative Pool (20 items)
         creative_pool = []
@@ -154,56 +161,63 @@ class MockGenerator:
 
         # 2. Skeleton Setup
         accounts = []
-        total_accounts, total_campaigns, total_adsets, total_ads = 0, 0, 0, 0
-
         for i in range(acc_cnt):
             acc_seed = f"{base_seed}_acc_{i}"
             acc_id = self._get_deterministic_id(acc_seed, "act")
             acc = {"id": acc_id, "name": f"Account QC #{i+1}", "campaigns": []}
-            total_accounts += 1
-            for j in range(cam_cnt):
-                cam_seed = f"{acc_seed}_cam_{j}"
-                cam = {"id": self._get_deterministic_id(cam_seed, "cam"), "name": self._get_random_name("campaign", cam_seed), "adsets": []}
-                total_campaigns += 1
-                for k in range(set_per_cam):
-                    set_seed = f"{cam_seed}_s_{k}"
-                    set_name = self._get_random_name("adset", set_seed)
 
-                    # Properties seeding
-                    set_prop_rng = random.Random(set_seed)
-                    start_idx = set_prop_rng.randint(0, total_days - 1)
-                    duration = set_prop_rng.randint(min(max(1, int(total_days * 0.3)), total_days - start_idx), total_days - start_idx)
+            # For each account, generate campaigns for each involved year
+            for year in years_to_generate:
+                year_anchor = datetime(year, 1, 1)
+                for j in range(cam_cnt):
+                    cam_seed = f"{acc_seed}_{year}_cam_{j}"
+                    cam = {"id": self._get_deterministic_id(cam_seed, "cam"),
+                           "name": self._get_random_name("campaign", cam_seed),
+                           "adsets": []}
 
-                    adset = {
-                        "id": self._get_deterministic_id(set_seed, "set"), "name": set_name,
-                        "daily_budget": set_prop_rng.randint(100000, 1000000), "start_date": dates[start_idx], "end_date": dates[start_idx + duration - 1],
-                        "targeting_bias": self._analyze_targeting_bias(set_name), "ads": []
-                    }
-                    total_adsets += 1
-                    for l in range(ad_per_set):
-                        ad_seed = set_seed + f"_a_{l}"
-                        ad_prop_rng = random.Random(ad_seed)
-                        creative = creative_pool[ad_prop_rng.randint(0, len(creative_pool)-1)]
+                    for k in range(set_per_cam):
+                        set_seed = f"{cam_seed}_s_{k}"
+                        set_prop_rng = random.Random(set_seed)
+                        set_name = self._get_random_name("adset", set_seed)
 
-                        ad_start_idx = ad_prop_rng.randint(start_idx, start_idx + duration - 1)
-                        ad_dur = ad_prop_rng.randint(1, start_idx + duration - ad_start_idx)
-                        adset["ads"].append({
-                            "id": self._get_deterministic_id(ad_seed, "ad"), "name": f"Ad: {creative['name']}",
-                            "start_date": dates[ad_start_idx], "end_date": dates[ad_start_idx + ad_dur - 1],
-                            "quality_multiplier": ad_prop_rng.uniform(0.6, 2.2),
-                            "creative_id": creative["id"], "creative_name": creative["name"]
-                        })
-                        total_ads += 1
-                    cam["adsets"].append(adset)
-                acc["campaigns"].append(cam)
+                        # Life cycle relative to the YEAR anchor, completely stable
+                        start_offset = set_prop_rng.randint(-30, 330)
+                        duration = set_prop_rng.randint(60, 200)
+
+                        set_start = (year_anchor + timedelta(days=start_offset)).strftime("%Y-%m-%d")
+                        set_end = (year_anchor + timedelta(days=start_offset + duration)).strftime("%Y-%m-%d")
+
+                        adset = {
+                            "id": self._get_deterministic_id(set_seed, "set"), "name": set_name,
+                            "daily_budget": set_prop_rng.randint(100000, 1000000),
+                            "start_date": set_start, "end_date": set_end,
+                            "targeting_bias": self._analyze_targeting_bias(set_name), "ads": []
+                        }
+                        for l in range(ad_per_set):
+                            ad_seed = set_seed + f"_a_{l}"
+                            ad_prop_rng = random.Random(ad_seed)
+                            creative = creative_pool[ad_prop_rng.randint(0, len(creative_pool)-1)]
+
+                            ad_start_off = ad_prop_rng.randint(0, 20)
+                            ad_dur = ad_prop_rng.randint(30, duration - ad_start_off)
+
+                            ad_start = (year_anchor + timedelta(days=start_offset + ad_start_off)).strftime("%Y-%m-%d")
+                            ad_end = (year_anchor + timedelta(days=start_offset + ad_start_off + ad_dur)).strftime("%Y-%m-%d")
+
+                            adset["ads"].append({
+                                "id": self._get_deterministic_id(ad_seed, "ad"), "name": f"Ad: {creative['name']}",
+                                "start_date": ad_start, "end_date": ad_end,
+                                "quality_multiplier": ad_prop_rng.uniform(0.6, 2.2),
+                                "creative_id": creative["id"], "creative_name": creative["name"]
+                            })
+                        cam["adsets"].append(adset)
+                    acc["campaigns"].append(cam)
             accounts.append(acc)
 
-        print("Mock Generator: Skeleton Built! Summary:")
-        print(f"   >>> Total Accounts:  {total_accounts}")
-        print(f"   >>> Total Campaigns: {total_campaigns}")
-        print(f"   >>> Total Ad Sets:   {total_adsets}")
-        print(f"   >>> Total Ad Entities: {total_ads}")
-        print("   ----------------------------------------")
+        # Print summary for the current run
+        total_accounts = len(accounts)
+        total_campaigns = sum(len(acc["campaigns"]) for acc in accounts)
+        print(f"Mock Generator: Skeleton Built for years {years_to_generate}!, Total accounts: {total_accounts}, Total campaigns: {total_campaigns}")
 
         ad_perf_map, adset_perf_map, campaign_perf_map = {}, {}, {}
         TABLES = {
@@ -216,11 +230,9 @@ class MockGenerator:
         # 3. Daily Waterfall Loop
         for date in dates:
             print(f"Mock Generator: Processing Date: {date}...")
-            daily_rng = random.Random(f"{base_seed}_{date}")
             seasonality = self._get_seasonality_multiplier(date)
             day_ad_buffer, day_age_gender_buffer = [], []
             day_adset_map, day_campaign_map, day_account_map = {}, {}, {}
-
             for acc in accounts:
                 for cam in acc["campaigns"]:
                     for adset in cam["adsets"]:
@@ -228,39 +240,59 @@ class MockGenerator:
                         for ad in adset["ads"]:
                             if not (ad["start_date"] <= date <= ad["end_date"]): continue
 
-                            # Logarithmic CPM Inflation (Diminishing Returns)
-                            spend = round(daily_rng.uniform(0.1, 0.4) * (adset["daily_budget"] / ad_per_set), 2)
-                            inflation = 1 + math.log10(max(1, spend / 50000))
+                            # PER-AD DETERMINISTIC SEEDING
+                            ad_daily_seed = f"{ad['id']}_{date}"
+                            ad_rng = random.Random(ad_daily_seed)
 
-                            quality = ad["quality_multiplier"]
-                            base_cpm = daily_rng.uniform(40000, 150000)
+                            # PROGRESSION LOGIC
+                            curr_dt = datetime.strptime(date, "%Y-%m-%d")
+                            start_dt = datetime.strptime(ad["start_date"], "%Y-%m-%d")
+                            days_active = max(0, (curr_dt - start_dt).days)
+                            growth_mult = 1.0 + (days_active * 0.005)
+                            perf_mult = 1.0 + (min(30, days_active) * 0.002)
+
+                            # INTRA-DAY REALTIME FACTOR
+                            today_str = datetime.now().strftime("%Y-%m-%d")
+                            intra_day_factor = 1.0
+                            if date == today_str:
+                                now = datetime.now()
+                                seconds_passed = now.hour * 3600 + now.minute * 60 + now.second
+                                intra_day_factor = seconds_passed / 86400.0
+
+                            # Logarithmic CPM Inflation
+                            base_spend = ad_rng.uniform(0.1, 0.4) * (adset["daily_budget"] / ad_per_set)
+                            spend = round(base_spend * growth_mult * intra_day_factor, 2)
+                            inflation = 1 + math.log10(max(1, spend / 50000)) if spend > 0 else 1
+
+                            quality = ad["quality_multiplier"] * perf_mult
+                            base_cpm = ad_rng.uniform(40000, 150000)
                             cpm = base_cpm * seasonality * inflation / quality
 
-                            impressions = max(1, int((spend / max(1, cpm)) * 1000))
-                            ctr = 0.015 * quality * daily_rng.uniform(0.8, 1.2)
+                            impressions = max(0, int((spend / max(1, cpm)) * 1000))
+                            ctr = 0.015 * quality * ad_rng.uniform(0.8, 1.2)
                             clicks = int(impressions * ctr)
 
                             # Strict Waterfall Funnel
-                            link_click_ratio = daily_rng.uniform(0.65, 0.85)
+                            link_click_ratio = ad_rng.uniform(0.65, 0.85)
                             link_clicks = int(clicks * link_click_ratio)
 
-                            landing_page_views = int(link_clicks * daily_rng.uniform(0.7, 0.9))
-                            messaging_first_reply = int(clicks * daily_rng.uniform(0.05, 0.15) * quality)
-                            new_messaging_connections = int(messaging_first_reply * daily_rng.uniform(0.8, 0.95))
+                            landing_page_views = int(link_clicks * ad_rng.uniform(0.7, 0.9))
+                            messaging_first_reply = int(clicks * ad_rng.uniform(0.05, 0.15) * quality)
+                            new_messaging_connections = int(messaging_first_reply * ad_rng.uniform(0.8, 0.95))
 
-                            post_comments = int(clicks * daily_rng.uniform(0.02, 0.1) * quality)
-                            post_shares = int(clicks * daily_rng.uniform(0.01, 0.05))
-                            post_saves = int(clicks * daily_rng.uniform(0.02, 0.08))
-                            post_reactions = int(clicks * daily_rng.uniform(0.1, 0.3) * quality)
-                            photo_views = int(clicks * daily_rng.uniform(0.2, 0.5))
-                            page_likes = int(clicks * daily_rng.uniform(0.01, 0.04))
+                            post_comments = int(clicks * ad_rng.uniform(0.02, 0.1) * quality)
+                            post_shares = int(clicks * ad_rng.uniform(0.01, 0.05))
+                            post_saves = int(clicks * ad_rng.uniform(0.02, 0.08))
+                            post_reactions = int(clicks * ad_rng.uniform(0.1, 0.3) * quality)
+                            photo_views = int(clicks * ad_rng.uniform(0.2, 0.5))
+                            page_likes = int(clicks * ad_rng.uniform(0.01, 0.04))
 
-                            v25 = int(impressions * daily_rng.uniform(0.08, 0.15) * quality)
-                            v50 = int(v25 * daily_rng.uniform(0.3, 0.5))
-                            v75 = int(v50 * daily_rng.uniform(0.4, 0.6))
-                            v95 = int(v75 * daily_rng.uniform(0.5, 0.7))
-                            v100 = int(v95 * daily_rng.uniform(0.7, 0.9))
-                            thru_play = int(v25 * daily_rng.uniform(0.5, 0.8))
+                            v25 = int(impressions * ad_rng.uniform(0.08, 0.15) * quality)
+                            v50 = int(v25 * ad_rng.uniform(0.3, 0.5))
+                            v75 = int(v50 * ad_rng.uniform(0.4, 0.6))
+                            v95 = int(v75 * ad_rng.uniform(0.5, 0.7))
+                            v100 = int(v95 * ad_rng.uniform(0.7, 0.9))
+                            thru_play = int(v25 * ad_rng.uniform(0.5, 0.8))
 
                             post_engagements = clicks + post_comments + post_shares + post_reactions + post_saves + photo_views
 
@@ -280,7 +312,9 @@ class MockGenerator:
                             }
                             day_ad_buffer.append(ad_data)
 
-                            weights = self._get_age_gender_weights(daily_rng, adset["targeting_bias"])
+                            # For age/gender distribution
+                            dist_rng = random.Random(f"{ad['id']}_{date}_dist")
+                            weights = self._get_age_gender_weights(dist_rng, adset["targeting_bias"])
                             dist_keys = [
                                 "spend", "impressions", "reach", "clicks", "linkClicks", "landingPageViews",
                                 "messagingFirstReply", "newMessagingConnections", "postComments",
