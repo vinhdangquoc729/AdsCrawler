@@ -5,6 +5,8 @@ from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType
 
 from facebook_processor import FacebookAdsProcessor
+from google_processor import GoogleAdsProcessor
+
 
 def create_spark():
     spark = SparkSession.builder \
@@ -21,7 +23,6 @@ def create_spark():
 def main():
     spark = create_spark()
 
-    # metadata/schema used to route messages
     metadata_schema = StructType([
         StructField("platform", StringType()),
         StructField("report_type", StringType()),
@@ -38,7 +39,7 @@ def main():
         raw_stream = spark.readStream \
             .format("kafka") \
             .option("kafka.bootstrap.servers", "kafka:29092") \
-            .option("subscribe", "topic_fb_raw") \
+            .option("subscribe", "topic_fb_raw,topic_google_raw") \
             .option("startingOffsets", "earliest") \
             .option("failOnDataLoss", "false") \
             .load()
@@ -56,7 +57,7 @@ def main():
             col("payload.data").alias("raw_data")
         )
 
-    # archive raw data to datalake
+    # archive raw data from both platforms to datalake
     base_stream.writeStream \
         .format("parquet") \
         .option("path", "s3a://marketing-datalake/raw_zone/") \
@@ -65,17 +66,17 @@ def main():
         .start()
 
     fb_processor = FacebookAdsProcessor(spark)
+    google_processor = GoogleAdsProcessor(spark)
 
     def route_data_to_dwh(df, epoch_id):
-        fb_processor.process_batch(df, epoch_id)
+        fb_processor.process_batch(df.filter(col("platform") == "facebook"), epoch_id)
+        google_processor.process_batch(df.filter(col("platform") == "google"), epoch_id)
 
     base_stream.writeStream \
         .foreachBatch(route_data_to_dwh) \
         .trigger(availableNow=True) \
         .option("checkpointLocation", "s3a://marketing-datalake/checkpoints/data_warehouse_router/") \
         .start()
-
-    # wait for any stream to finish (in this case, the availableNow stream will terminate after processing all data)
 
     spark.streams.awaitAnyTermination()
 

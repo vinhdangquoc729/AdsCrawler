@@ -184,3 +184,287 @@ CREATE TABLE IF NOT EXISTS marketing_db.dim_date (
     holiday_name Nullable(String)
 ) ENGINE = ReplacingMergeTree()
 ORDER BY date;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Google Ads: flat denormalized reports  (gad_ prefix, mirrors fad_ for FB)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_campaign_daily_report
+(
+    campaign_id   String,
+    campaign_name Nullable(String),
+    date          Date,
+    impressions   Int32   DEFAULT 0,
+    clicks        Int32   DEFAULT 0,
+    cost          Float32 DEFAULT 0,
+    all_conversions Int32 DEFAULT 0,
+    ctr           Float32 DEFAULT 0,
+    updated_at    DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (campaign_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_ad_group_daily_report
+(
+    adgroup_id   String,
+    adgroup_name Nullable(String),
+    date         Date,
+    impressions  Int32   DEFAULT 0,
+    clicks       Int32   DEFAULT 0,
+    cost         Float32 DEFAULT 0,
+    all_conversions Int32 DEFAULT 0,
+    ctr          Float32 DEFAULT 0,
+    updated_at   DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (adgroup_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_account_daily_report
+(
+    account_id   String,
+    account_name Nullable(String),
+    date         Date,
+    impressions  Int32   DEFAULT 0,
+    clicks       Int32   DEFAULT 0,
+    cost         Float32 DEFAULT 0,
+    all_conversions Int32 DEFAULT 0,
+    ctr          Float32 DEFAULT 0,
+    updated_at   DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (account_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_keyword_performance_report
+(
+    adgroup_id          String,
+    date                Date,
+    campaign_id         String,
+    campaign_name       Nullable(String),
+    adgroup_name        Nullable(String),
+    account_id          Nullable(String),
+    account_name        Nullable(String),
+    device              String,
+    keyword             String,
+    quality_score       Int32   DEFAULT 0,
+    impressions         Int32   DEFAULT 0,
+    clicks              Int32   DEFAULT 0,
+    ctr                 Float32 DEFAULT 0,
+    conversions         Int32   DEFAULT 0,
+    all_conversions     Int32   DEFAULT 0,
+    average_cpc         Float32 DEFAULT 0,
+    cost_per_conversion Float32 DEFAULT 0,
+    cost                Float32 DEFAULT 0,
+    updated_at          DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (adgroup_id, keyword, device, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_demographic_report
+(
+    adgroup_id          String,
+    date                Date,
+    campaign_id         String,
+    campaign_name       Nullable(String),
+    adgroup_name        Nullable(String),
+    account_id          Nullable(String),
+    account_name        Nullable(String),
+    device              String,
+    age_range           String  DEFAULT '',
+    gender              String  DEFAULT '',
+    impressions         Int32   DEFAULT 0,
+    clicks              Int32   DEFAULT 0,
+    ctr                 Float32 DEFAULT 0,
+    conversions         Int32   DEFAULT 0,
+    all_conversions     Int32   DEFAULT 0,
+    average_cpc         Float32 DEFAULT 0,
+    cost_per_conversion Float32 DEFAULT 0,
+    cost                Float32 DEFAULT 0,
+    updated_at          DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (adgroup_id, age_range, gender, device, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_ad_asset_daily_report
+(
+    ad_id            String,
+    asset_id         String,
+    date             Date,
+    campaign_id      Nullable(String),
+    campaign_name    Nullable(String),
+    adgroup_id       Nullable(String),
+    adgroup_name     Nullable(String),
+    asset_name       Nullable(String),
+    asset_type       Nullable(String),
+    asset_text       Nullable(String),
+    image_url        Nullable(String),
+    asset_performance Nullable(String),
+    impressions      Int32   DEFAULT 0,
+    clicks           Int32   DEFAULT 0,
+    ctr              Float32 DEFAULT 0,
+    all_conversions  Int32   DEFAULT 0,
+    cost             Float32 DEFAULT 0,
+    account_id       Nullable(String),
+    account_name     Nullable(String),
+    updated_at       DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (ad_id, asset_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.gad_click_type_report
+(
+    campaign_id     String,
+    date            Date,
+    click_type      String,
+    campaign_name   Nullable(String),
+    campaign_status Nullable(String),
+    impressions     Int32   DEFAULT 0,
+    clicks          Int32   DEFAULT 0,
+    ctr             Float32 DEFAULT 0,
+    conversions     Int32   DEFAULT 0,
+    all_conversions Int32   DEFAULT 0,
+    device          String,
+    ad_network_type Nullable(String),
+    cost            Float32 DEFAULT 0,
+    account_id      Nullable(String),
+    account_name    Nullable(String),
+    updated_at      DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (campaign_id, click_type, device, date);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Google Ads: snowflake schema  (dim_gg_ / fact_gg_ prefix, mirrors FB dims)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS marketing_db.dim_gg_adgroup
+(
+    adgroup_id   String,
+    campaign_id  String,
+    adgroup_name String,
+    updated_at   DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY adgroup_id;
+
+CREATE TABLE IF NOT EXISTS marketing_db.dim_gg_asset
+(
+    asset_id   String,
+    ad_id      String,
+    asset_name String,
+    asset_type String,
+    asset_text String,
+    image_url  String,
+    updated_at DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY asset_id;
+
+CREATE TABLE IF NOT EXISTS marketing_db.fact_gg_campaign_daily
+(
+    date            Date,
+    campaign_id     String,
+    impressions     Int32   DEFAULT 0,
+    clicks          Int32   DEFAULT 0,
+    cost            Float32 DEFAULT 0,
+    all_conversions Int32   DEFAULT 0,
+    ctr             Float32 DEFAULT 0,
+    updated_at      DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (campaign_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.fact_gg_adgroup_daily
+(
+    date            Date,
+    adgroup_id      String,
+    impressions     Int32   DEFAULT 0,
+    clicks          Int32   DEFAULT 0,
+    cost            Float32 DEFAULT 0,
+    all_conversions Int32   DEFAULT 0,
+    ctr             Float32 DEFAULT 0,
+    updated_at      DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (adgroup_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.fact_gg_keyword_daily
+(
+    date                Date,
+    account_id          String,
+    campaign_id         String,
+    adgroup_id          String,
+    keyword             String,
+    device              String,
+    quality_score       Int32   DEFAULT 0,
+    impressions         Int32   DEFAULT 0,
+    clicks              Int32   DEFAULT 0,
+    cost                Float32 DEFAULT 0,
+    conversions         Int32   DEFAULT 0,
+    all_conversions     Int32   DEFAULT 0,
+    ctr                 Float32 DEFAULT 0,
+    average_cpc         Float32 DEFAULT 0,
+    cost_per_conversion Float32 DEFAULT 0,
+    updated_at          DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (account_id, adgroup_id, keyword, device, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.fact_gg_demographic_daily
+(
+    date                Date,
+    account_id          String,
+    campaign_id         String,
+    adgroup_id          String,
+    age_range           String  DEFAULT '',
+    gender              String  DEFAULT '',
+    device              String,
+    impressions         Int32   DEFAULT 0,
+    clicks              Int32   DEFAULT 0,
+    cost                Float32 DEFAULT 0,
+    conversions         Int32   DEFAULT 0,
+    all_conversions     Int32   DEFAULT 0,
+    ctr                 Float32 DEFAULT 0,
+    average_cpc         Float32 DEFAULT 0,
+    cost_per_conversion Float32 DEFAULT 0,
+    updated_at          DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (account_id, adgroup_id, age_range, gender, device, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.fact_gg_asset_daily
+(
+    date             Date,
+    account_id       String,
+    campaign_id      String,
+    adgroup_id       String,
+    ad_id            String,
+    asset_id         String,
+    asset_performance String,
+    impressions      Int32   DEFAULT 0,
+    clicks           Int32   DEFAULT 0,
+    cost             Float32 DEFAULT 0,
+    all_conversions  Int32   DEFAULT 0,
+    ctr              Float32 DEFAULT 0,
+    updated_at       DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (account_id, adgroup_id, ad_id, asset_id, date);
+
+CREATE TABLE IF NOT EXISTS marketing_db.fact_gg_click_type_daily
+(
+    date            Date,
+    account_id      String,
+    campaign_id     String,
+    click_type      String,
+    device          String,
+    ad_network_type String,
+    impressions     Int32   DEFAULT 0,
+    clicks          Int32   DEFAULT 0,
+    cost            Float32 DEFAULT 0,
+    conversions     Int32   DEFAULT 0,
+    all_conversions Int32   DEFAULT 0,
+    ctr             Float32 DEFAULT 0,
+    updated_at      DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(date)
+ORDER BY (account_id, campaign_id, click_type, device, date);
