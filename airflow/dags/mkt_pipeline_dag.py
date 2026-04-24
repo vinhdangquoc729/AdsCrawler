@@ -22,8 +22,8 @@ with DAG(
     tags=['marketing', 'minio', 'mock']
 ) as dag:
 
-    t0_mock_generation = BashOperator(
-        task_id='mock_generation_task',
+    t0_mock_facebook = BashOperator(
+        task_id='mock_generation_facebook',
         bash_command="""
             pip install --quiet minio openpyxl pandas &&
             cd /opt/spark/work-dir &&
@@ -32,6 +32,19 @@ with DAG(
             export MINIO_ACCESS_KEY=admin &&
             export MINIO_SECRET_KEY=password123 &&
             python3 -m ingest.facebook.main --mode mock
+        """
+    )
+
+    t0_mock_google = BashOperator(
+        task_id='mock_generation_google',
+        bash_command="""
+            pip install --quiet minio openpyxl pandas &&
+            cd /opt/spark/work-dir &&
+            export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
+            export MINIO_ENDPOINT=minio:9000 &&
+            export MINIO_ACCESS_KEY=admin &&
+            export MINIO_SECRET_KEY=password123 &&
+            python3 -m ingest.google.main --mode mock
         """
     )
 
@@ -63,4 +76,4 @@ with DAG(
     # )
 
     # t0_mock_generation >> t1_minio_ingest >> t2_spark_processor
-    t0_mock_generation >> t1_minio_ingest
+    [t0_mock_facebook, t0_mock_google] >> t1_minio_ingest
