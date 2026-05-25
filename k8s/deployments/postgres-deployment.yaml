@@ -28,8 +28,15 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "airflow"]
             initialDelaySeconds: 10
             periodSeconds: 5
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc

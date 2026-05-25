@@ -13,6 +13,7 @@ spec:
       labels:
         app: spark-master
     spec:
+      enableServiceLinks: false
       containers:
         - name: spark-master
           image: apache/spark:3.5.1

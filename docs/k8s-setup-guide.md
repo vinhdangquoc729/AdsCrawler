@@ -17,7 +17,7 @@ Vì hệ thống chạy rất nhiều dịch vụ nặng cùng lúc (Kafka, Spar
 | Tiêu chí | Cấu hình đề xuất |
 | :--- | :--- |
 | **RAM** | **12 GB trở lên** (Khuyến nghị 16 GB để chạy mượt mà) |
-| **CPU** | 4 nhân trở lên |
+| **CPU** | **4 nhân trở lên** (Minikube cần ≥2 core cho hệ thống, Spark Worker cần thêm ≥2 core để speed-layer và batch ingest chạy song song không tranh nhau) |
 | **Ổ cứng** | Trống tối thiểu **20 GB** |
 | **Công cụ (Windows)** | **Docker Desktop** đã được cài đặt và đang chạy |
 | **Công cụ (Linux)** | **Docker Engine** (`docker-ce`) đã được cài đặt và đang chạy |

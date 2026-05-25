@@ -20,6 +20,7 @@ with DAG(
     description='Automated pipeline: Mock → Kafka → MinIO → Spark → ClickHouse',
     schedule_interval='@daily',
     catchup=False,
+    max_active_runs=1,
     tags=['marketing', 'kafka', 'minio', 'mock']
 ) as dag:
 
@@ -65,21 +66,50 @@ with DAG(
         bash_command="echo 'Waiting 90s for Kafka Connect to flush to MinIO...' && sleep 90"
     )
 
+    # Pause speed-layer to free up Spark Worker core for batch ingest
+    t_pause_speed_layer = BashOperator(
+        task_id='pause_speed_layer',
+        bash_command="""
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) && \
+            curl -s -k -o /dev/null -w '%{http_code}' \
+              -X PATCH https://kubernetes.default.svc/apis/apps/v1/namespaces/marketing/deployments/speed-layer \
+              -H "Authorization: Bearer $TOKEN" \
+              -H 'Content-Type: application/strategic-merge-patch+json' \
+              -d '{"spec":{"replicas":0}}' && \
+            echo ' speed-layer scaled to 0' && sleep 15
+        """
+    )
+
     t1_minio_ingest = BashOperator(
         task_id='minio_to_clickhouse_ingest',
         bash_command="""
+            DRIVER_IP=$(hostname -i) && \
             spark-submit --master spark://spark-master:7077 \
-            --conf spark.cores.max=8 \
-            --conf spark.executor.memory=1g \
-            --jars /opt/airflow/jars/clickhouse-jdbc.jar,\
-/opt/airflow/jars/hadoop-aws.jar,\
-/opt/airflow/jars/aws-java-sdk-bundle.jar,\
-/opt/airflow/jars/commons-pool2.jar \
+            --conf spark.driver.host=$DRIVER_IP \
+            --conf spark.driver.bindAddress=0.0.0.0 \
+            --conf spark.driver.memory=512m \
+            --conf spark.cores.max=2 \
+            --conf spark.executor.memory=512m \
+            --jars /opt/airflow/jars/clickhouse-jdbc.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar \
             /opt/spark/work-dir/spark_consumer/minio_ingest.py \
             --date {{ ds }}
         """
     )
 
-    # DAG: Mock → Kafka → (wait flush) → Spark reads MinIO → ClickHouse
-    [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t1_minio_ingest
+    # Resume speed-layer after ingest (even if ingest failed)
+    t_resume_speed_layer = BashOperator(
+        task_id='resume_speed_layer',
+        bash_command="""
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) && \
+            curl -s -k -o /dev/null -w '%{http_code}' \
+              -X PATCH https://kubernetes.default.svc/apis/apps/v1/namespaces/marketing/deployments/speed-layer \
+              -H "Authorization: Bearer $TOKEN" \
+              -H 'Content-Type: application/strategic-merge-patch+json' \
+              -d '{"spec":{"replicas":1}}' && \
+            echo ' speed-layer scaled to 1'
+        """,
+        trigger_rule='all_done'
+    )
 
+    # DAG: Mock → Kafka → wait flush → pause speed-layer → Spark ingest → resume speed-layer
+    [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t_pause_speed_layer >> t1_minio_ingest >> t_resume_speed_layer

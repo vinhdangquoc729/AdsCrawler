@@ -39,8 +39,12 @@ spec:
           volumeMounts:
             - mountPath: /opt/airflow/dags
               name: dags
+            - mountPath: /opt/airflow/logs
+              name: logs
       volumes:
         - name: dags
           hostPath:
             path: /opt/spark/work-dir/airflow/dags
             type: DirectoryOrCreate
+        - name: logs
+          emptyDir: {}
