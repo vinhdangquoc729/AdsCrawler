@@ -46,7 +46,7 @@ spec:
                 --conf spark.driver.host=$DRIVER_IP \
                 --conf spark.driver.bindAddress=0.0.0.0 \
                 --conf spark.driver.memory=512m \
-                --conf spark.cores.max=2 \
+                --conf spark.cores.max=1 \
                 --conf spark.executor.memory=512m \
                 --jars /opt/airflow/jars/spark-sql-kafka.jar,/opt/airflow/jars/kafka-clients.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar,/opt/airflow/jars/spark-token-provider-kafka.jar \
                 /opt/spark/work-dir/spark_consumer/speed_layer.py
@@ -56,7 +56,7 @@ spec:
           resources:
             requests:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "200m"
             limits:
               memory: "1536Mi"
               cpu: "1000m"

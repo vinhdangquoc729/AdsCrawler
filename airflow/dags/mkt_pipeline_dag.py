@@ -27,7 +27,6 @@ with DAG(
     t0_mock_facebook = BashOperator(
         task_id='mock_generation_facebook',
         bash_command="""
-            pip install --quiet minio openpyxl pandas confluent-kafka &&
             cd /opt/spark/work-dir &&
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export KAFKA_BOOTSTRAP_SERVERS=kafka:29092 &&
@@ -39,7 +38,6 @@ with DAG(
     t0_mock_google = BashOperator(
         task_id='mock_generation_google',
         bash_command="""
-            pip install --quiet minio openpyxl pandas confluent-kafka &&
             cd /opt/spark/work-dir &&
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export KAFKA_BOOTSTRAP_SERVERS=kafka:29092 &&
@@ -51,7 +49,6 @@ with DAG(
     t0_mock_tiktok = BashOperator(
         task_id='mock_generation_tiktok',
         bash_command="""
-            pip install --quiet minio openpyxl pandas confluent-kafka &&
             cd /opt/spark/work-dir &&
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export KAFKA_BOOTSTRAP_SERVERS=kafka:29092 &&
@@ -66,7 +63,7 @@ with DAG(
         bash_command="echo 'Waiting 90s for Kafka Connect to flush to MinIO...' && sleep 90"
     )
 
-    # Pause speed-layer to free up Spark Worker core for batch ingest
+    # Pause speed-layer to free up the Spark Worker core for batch ingest
     t_pause_speed_layer = BashOperator(
         task_id='pause_speed_layer',
         bash_command="""
@@ -88,7 +85,7 @@ with DAG(
             --conf spark.driver.host=$DRIVER_IP \
             --conf spark.driver.bindAddress=0.0.0.0 \
             --conf spark.driver.memory=512m \
-            --conf spark.cores.max=2 \
+            --conf spark.cores.max=1 \
             --conf spark.executor.memory=512m \
             --jars /opt/airflow/jars/clickhouse-jdbc.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar \
             /opt/spark/work-dir/spark_consumer/minio_ingest.py \
@@ -96,7 +93,7 @@ with DAG(
         """
     )
 
-    # Resume speed-layer after ingest (even if ingest failed)
+    # Resume speed-layer after ingest (runs even if ingest failed)
     t_resume_speed_layer = BashOperator(
         task_id='resume_speed_layer',
         bash_command="""
@@ -111,5 +108,5 @@ with DAG(
         trigger_rule='all_done'
     )
 
-    # DAG: Mock → Kafka → wait flush → pause speed-layer → Spark ingest → resume speed-layer
+    # DAG: Mock (parallel) → wait flush → pause speed-layer → Spark ingest → resume speed-layer
     [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t_pause_speed_layer >> t1_minio_ingest >> t_resume_speed_layer
