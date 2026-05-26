@@ -53,12 +53,25 @@ class KafkaJsonProducer:
         if not records:
             return
 
+        import datetime
         for record in records:
             enriched = self._enrich_partition_fields(record.copy())
             value = json.dumps(enriched, ensure_ascii=False).encode('utf-8')
+            # Extract logical date for Kafka message timestamp
+            # Looks for date_start, date, or stat_time_day
+            date_str = enriched.get("date_start") or enriched.get("date") or enriched.get("stat_time_day")
+            ts_ms = 0
+            if date_str and len(date_str) >= 10:
+                try:
+                    dt = datetime.datetime.strptime(date_str[:10], "%Y-%m-%d")
+                    ts_ms = int(dt.timestamp() * 1000)
+                except ValueError:
+                    pass
+
             self._producer.produce(
                 topic=topic,
                 value=value,
+                timestamp=ts_ms if ts_ms > 0 else 0,
                 callback=self._delivery_callback,
             )
             # Serve delivery callbacks periodically to avoid buffer overflow

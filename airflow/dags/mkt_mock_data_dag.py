@@ -1,6 +1,5 @@
-# airflow/dags/mkt_pipeline_dag.py
-# This DAG defines a marketing data pipeline that automates the ingestion of mock data
-# through Kafka → Kafka Connect → MinIO → Spark → ClickHouse.
+# airflow/dags/mkt_mock_data_dag.py
+# This DAG is responsible ONLY for generating mock data and publishing it to Kafka
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -15,12 +14,12 @@ default_args = {
 }
 
 with DAG(
-    'marketing_data_pipeline',
+    'marketing_mock_data_generation',
     default_args=default_args,
-    description='Automated pipeline: Mock → Kafka → MinIO → Spark → ClickHouse',
-    schedule_interval='@daily',
+    description='Automated pipeline: Mock Data Generation → Kafka',
+    schedule_interval='*/15 * * * *',
     catchup=False,
-    tags=['marketing', 'kafka', 'minio', 'mock']
+    tags=['marketing', 'kafka', 'mock']
 ) as dag:
 
     t_setup_deps = BashOperator(
@@ -35,7 +34,7 @@ with DAG(
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export KAFKA_BOOTSTRAP_SERVERS=kafka:29092 &&
             python3 -m ingest.facebook.main --mode mock --output kafka \
-                --start-date {{ ds }} --end-date {{ ds }}
+                --start-date {{ data_interval_end.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }} --end-date {{ data_interval_end.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }}
         """
     )
 
@@ -46,7 +45,7 @@ with DAG(
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export KAFKA_BOOTSTRAP_SERVERS=kafka:29092 &&
             python3 -m ingest.google.main --mode mock --output kafka \
-                --start-date {{ ds }} --end-date {{ ds }}
+                --start-date {{ data_interval_end.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }} --end-date {{ data_interval_end.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }}
         """
     )
 
@@ -57,31 +56,15 @@ with DAG(
             export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
             export KAFKA_BOOTSTRAP_SERVERS=kafka:29092 &&
             python3 -m ingest.tiktok.main --mode mock --output kafka \
-                --start-date {{ ds }} --end-date {{ ds }}
+                --start-date {{ data_interval_end.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }} --end-date {{ data_interval_end.in_timezone('Asia/Ho_Chi_Minh').strftime('%Y-%m-%d') }}
         """
     )
 
-    # Wait for Kafka Connect to flush data to MinIO
+    # Wait for Kafka Connect to flush data to MinIO so it is ready for Spark
     t_wait_flush = BashOperator(
         task_id='wait_kafka_connect_flush',
         bash_command="echo 'Waiting 90s for Kafka Connect to flush to MinIO...' && sleep 90"
     )
 
-    t1_minio_ingest = BashOperator(
-        task_id='minio_to_clickhouse_ingest',
-        bash_command="""
-            spark-submit --master spark://spark-master:7077 \
-            --conf spark.cores.max=8 \
-            --conf spark.executor.memory=1g \
-            --jars /opt/airflow/jars/clickhouse-jdbc.jar,\
-/opt/airflow/jars/hadoop-aws.jar,\
-/opt/airflow/jars/aws-java-sdk-bundle.jar,\
-/opt/airflow/jars/commons-pool2.jar \
-            /opt/spark/work-dir/spark_consumer/minio_ingest.py \
-            --date {{ ds }}
-        """
-    )
-
-    # DAG: Setup deps -> Mock → Kafka → (wait flush) → Spark reads MinIO → ClickHouse
-    t_setup_deps >> [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t1_minio_ingest
-
+    # DAG: Setup deps -> Mock → Kafka → (wait flush)
+    t_setup_deps >> [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush

@@ -12,7 +12,7 @@
   "path.format": "'year'=YYYY/'month'=MM/'day'=dd",
   "locale": "vi-VN",
   "timezone": "Asia/Ho_Chi_Minh",
-  "timestamp.extractor": "Wallclock",
+  "timestamp.extractor": "Record",
   "flush.size": "1000",
   "rotate.interval.ms": "-1",
   "rotate.schedule.interval.ms": "60000",
