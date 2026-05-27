@@ -127,6 +127,9 @@ class MockGenerator:
                 weight = 0.01
             return weight * rng.uniform(0.8, 1.2)
 
+        elif key_name == "keyword":
+            return rng.expovariate(1.0)
+
         return rng.uniform(0.5, 1.5)
 
     def _sum_metrics(self, target, source):

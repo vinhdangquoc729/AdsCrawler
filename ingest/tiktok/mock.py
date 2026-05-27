@@ -37,6 +37,9 @@ class MockGenerator:
         ]
     }
 
+    AGE_RANGES = ["AGE_13_17", "AGE_18_24", "AGE_25_34", "AGE_35_44", "AGE_45_54", "AGE_55_UP"]
+    GENDERS = ["MALE", "FEMALE"]
+
     def __init__(self, endpoint=None, access_key=None, secret_key=None, enable_xlsx_buffer=False, output_mode="minio", kafka_bootstrap_servers=None):
         self.output_mode = output_mode
         self.minio_client = MinioClient(endpoint, access_key, secret_key) if output_mode == "minio" else None
@@ -78,6 +81,18 @@ class MockGenerator:
         if month == 2 and 10 <= day <= 14: multiplier *= 2.5
         if month == 3 and 5 <= day <= 8: multiplier *= 2.0
         return multiplier
+
+    def _get_item_weight(self, item, key_name, rng):
+        if key_name == "age":
+            weight = 1.0
+            if item in ["AGE_18_24", "AGE_25_34"]:  weight = 3.5
+            elif item == "AGE_35_44":                weight = 2.0
+            elif item == "AGE_13_17":                weight = 0.4
+            elif item == "AGE_55_UP":                weight = 0.3
+            return weight * rng.uniform(0.8, 1.2)
+        elif key_name == "gender":
+            return 1.0 * rng.uniform(0.8, 1.2)
+        return rng.uniform(0.5, 1.5)
 
     def _upload_chunk(self, table_name, data):
         if not data: return
@@ -166,7 +181,9 @@ class MockGenerator:
 
         print("Mock Generator (Tiktok): Built hierarchy.")
 
-        TABLE_NAME = "TTA_ad_performance"
+        TABLE_NAME       = "TTA_ad_performance"
+        TTA_AGE_TABLE    = "TTA_age_performance"
+        TTA_GENDER_TABLE = "TTA_gender_performance"
         day_buffer = []
 
         now = datetime.now()
@@ -175,6 +192,9 @@ class MockGenerator:
         for date in dates:
             print(f"   Processing Date: {date}...")
             seasonality = self._get_seasonality_multiplier(date)
+            day_age_buffer    = []
+            day_gender_buffer = []
+            day_group_map     = {}
 
             for acc in accounts:
                 for cam in acc["campaigns"]:
@@ -273,9 +293,81 @@ class MockGenerator:
                             }
                             day_buffer.append(row)
 
+                            gid = str(grp["id"])
+                            if gid not in day_group_map:
+                                day_group_map[gid] = {
+                                    "grp": grp, "cam": cam, "acc": acc,
+                                    "spend": 0.0, "impressions": 0, "clicks": 0,
+                                    "conversion": 0, "video_play_actions": 0,
+                                    "likes": 0, "comments": 0, "shares": 0, "follows": 0,
+                                    "live_views": 0, "onsite_shopping": 0,
+                                    "total_onsite_shopping_value": 0.0, "purchase": 0,
+                                    "reach": 0,
+                                }
+                            m = day_group_map[gid]
+                            for k in ["spend", "impressions", "clicks", "conversion", "video_play_actions",
+                                      "likes", "comments", "shares", "follows", "live_views", "onsite_shopping",
+                                      "total_onsite_shopping_value", "purchase", "reach"]:
+                                m[k] += row[k]
+
+            def distribute_grp(items, key_name):
+                res = []
+                for gid, gdata in day_group_map.items():
+                    grp_meta = gdata["grp"]
+                    cam_meta = gdata["cam"]
+                    acc_meta = gdata["acc"]
+                    dist_rng = random.Random(f"{gid}_{date}_{key_name}")
+                    raw_w    = [self._get_item_weight(it, key_name, dist_rng) for it in items]
+                    total_w  = sum(raw_w) or 1.0
+                    norm_w   = [w / total_w for w in raw_w]
+
+                    base_keys = ["spend", "impressions", "clicks", "conversion", "video_play_actions",
+                                 "likes", "comments", "shares", "follows", "live_views", "onsite_shopping",
+                                 "total_onsite_shopping_value", "purchase", "reach"]
+                    rem = {k: gdata[k] for k in base_keys}
+
+                    for i, item in enumerate(items):
+                        drow = {
+                            "stat_time_day":    f"{date} 17:00:00.000",
+                            "advertiser_id":    str(acc_meta["id"]),
+                            "advertiser_name":  acc_meta["name"],
+                            "campaign_name":    cam_meta["name"],
+                            "adgroup_id":       str(grp_meta["id"]),
+                            "adgroup_name":     grp_meta["name"],
+                            key_name:           item,
+                            "user_id":          user_id,
+                            "createdAt":        now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                            "updatedAt":        now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                        }
+                        if i == len(items) - 1:
+                            for k in base_keys:
+                                drow[k] = rem[k]
+                        else:
+                            share = norm_w[i]
+                            for k in base_keys:
+                                val = round(gdata[k] * share, 1) if k in ("spend", "total_onsite_shopping_value") else int(gdata[k] * share)
+                                drow[k] = val
+                                rem[k] -= val
+
+                        drow["ctr"]                     = round(drow["clicks"] / max(1, drow["impressions"]), 4)
+                        drow["cpc"]                     = round(drow["spend"]  / max(1, drow["clicks"]), 1)
+                        drow["cpm"]                     = round(drow["spend"]  / max(1, drow["impressions"]) * 1000, 1)
+                        drow["conversion_rate"]         = round(drow["conversion"] / max(1, drow["clicks"]), 4)
+                        drow["cost_per_conversion"]     = round(drow["spend"] / max(1, drow["conversion"]), 1)
+                        drow["onsite_shopping_roas"]    = round(drow["total_onsite_shopping_value"] / max(1, drow["spend"]), 2)
+                        drow["cost_per_onsite_shopping"]= round(drow["spend"] / max(1, drow["onsite_shopping"]), 1)
+                        drow["frequency"]               = round(drow["impressions"] / max(1, drow["reach"]), 2)
+                        res.append(drow)
+                return res
+
+            day_age_buffer.extend(distribute_grp(self.AGE_RANGES, "age"))
+            day_gender_buffer.extend(distribute_grp(self.GENDERS, "gender"))
+
             # Tiktok typically pushes all data to a single table TTA_ad_performance
             # We will upload chunk by day
             self._upload_chunk(TABLE_NAME, day_buffer)
+            self._upload_chunk(TTA_AGE_TABLE,    day_age_buffer)
+            self._upload_chunk(TTA_GENDER_TABLE, day_gender_buffer)
             day_buffer = [] # clear buffer for next day
 
         if self.output_mode == "kafka" and self.kafka_producer:
