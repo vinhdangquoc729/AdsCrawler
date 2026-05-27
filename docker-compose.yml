@@ -147,34 +147,34 @@ services:
     networks:
       - marketing-net
 
-  # superset:
-  #   build: 
-  #     context: .
-  #     dockerfile: Dockerfile.superset
-  #   container_name: mkt_superset
-  #   ports:
-  #     - "8088:8088"
-  #   environment:
-  #     - SUPERSET_SECRET_KEY=marketing_big_data_key_2026
-  #     - ADMIN_USERNAME=admin
-  #     - ADMIN_EMAIL=admin@fab.org
-  #     - ADMIN_PASSWORD=password123
-  #     - SQLALCHEMY_DATABASE_URI=sqlite:////app/superset_home/superset.db
-  #   depends_on:
-  #     - clickhouse
-  #     - kafka
-  #     - minio
-  #   volumes:
-  #     - superset_data:/app/superset_home
-  #   networks:
-  #     - marketing-net
-  #   entrypoint: >
-  #     /bin/sh -c "
-  #     superset fab create-admin --username $$ADMIN_USERNAME --firstname Superset --lastname Admin --email $$ADMIN_EMAIL --password $$ADMIN_PASSWORD || true &&
-  #     superset db upgrade &&
-  #     superset init &&
-  #     superset run -p 8088 --with-threads --reload --debugger --host 0.0.0.0
-  #     "
+  superset:
+    build: 
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: mkt_superset
+    ports:
+      - "8088:8088"
+    environment:
+      - SUPERSET_SECRET_KEY=marketing_big_data_key_2026
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=admin@fab.org
+      - ADMIN_PASSWORD=password123
+      - SQLALCHEMY_DATABASE_URI=sqlite:////app/superset_home/superset.db
+    depends_on:
+      - clickhouse
+      - kafka
+      - minio
+    volumes:
+      - superset_data:/app/superset_home
+    networks:
+      - marketing-net
+    entrypoint: >
+      /bin/sh -c "
+      superset fab create-admin --username $$ADMIN_USERNAME --firstname Superset --lastname Admin --email $$ADMIN_EMAIL --password $$ADMIN_PASSWORD || true &&
+      superset db upgrade &&
+      superset init &&
+      superset run -p 8088 --with-threads --reload --debugger --host 0.0.0.0
+      "
 
   spark-master:
     image: apache/spark:3.5.1
