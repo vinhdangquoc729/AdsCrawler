@@ -20,6 +20,7 @@ with DAG(
     description='Automated pipeline: Mock → Kafka → MinIO → Spark → ClickHouse',
     schedule_interval='@daily',
     catchup=False,
+    max_active_runs=1,
     tags=['marketing', 'kafka', 'minio', 'mock']
 ) as dag:
 
@@ -67,21 +68,23 @@ with DAG(
         bash_command="echo 'Waiting 90s for Kafka Connect to flush to MinIO...' && sleep 90"
     )
 
+    # Spark Worker có 2 core: speed-layer dùng 1 core (spark.cores.max=1),
+    # batch ingest dùng 1 core còn lại — chạy song song, không cần pause/resume.
     t1_minio_ingest = BashOperator(
         task_id='minio_to_clickhouse_ingest',
         bash_command="""
+            DRIVER_IP=$(hostname -i) && \
             spark-submit --master spark://spark-master:7077 \
-            --conf spark.cores.max=8 \
-            --conf spark.executor.memory=1g \
-            --jars /opt/airflow/jars/clickhouse-jdbc.jar,\
-/opt/airflow/jars/hadoop-aws.jar,\
-/opt/airflow/jars/aws-java-sdk-bundle.jar,\
-/opt/airflow/jars/commons-pool2.jar \
+            --conf spark.driver.host=$DRIVER_IP \
+            --conf spark.driver.bindAddress=0.0.0.0 \
+            --conf spark.driver.memory=512m \
+            --conf spark.cores.max=1 \
+            --conf spark.executor.memory=512m \
+            --jars /opt/airflow/jars/clickhouse-jdbc.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar \
             /opt/spark/work-dir/spark_consumer/minio_ingest.py \
             --date {{ ds }}
         """
     )
 
-    # DAG: Setup deps -> Mock → Kafka → (wait flush) → Spark reads MinIO → ClickHouse
-    t_setup_deps >> [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t1_minio_ingest
-
+    # DAG: Mock (parallel) → wait flush → Spark ingest
+    [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t1_minio_ingest

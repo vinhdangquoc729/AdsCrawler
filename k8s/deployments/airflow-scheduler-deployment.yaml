@@ -30,15 +30,25 @@ spec:
           resources:
             requests:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "200m"
             limits:
               memory: "2Gi"
               cpu: "1000m"
           volumeMounts:
             - mountPath: /opt/airflow/dags
               name: dags
+            - mountPath: /opt/airflow/logs
+              name: logs
+            - mountPath: /opt/spark/work-dir
+              name: work-dir
       volumes:
         - name: dags
           hostPath:
             path: /opt/spark/work-dir/airflow/dags
+            type: DirectoryOrCreate
+        - name: logs
+          emptyDir: {}
+        - name: work-dir
+          hostPath:
+            path: /opt/spark/work-dir
             type: DirectoryOrCreate

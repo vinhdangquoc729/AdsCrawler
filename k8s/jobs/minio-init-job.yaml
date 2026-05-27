@@ -14,7 +14,7 @@ spec:
             - /bin/sh
             - -c
             - |
-              until mc config host add myminio http://minio:9000 admin password123; do
+              until mc alias set myminio http://minio:9000 admin password123; do
                 echo "Waiting for MinIO..." && sleep 2
               done
               mc mb --ignore-existing myminio/marketing-datalake

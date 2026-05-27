@@ -17,7 +17,7 @@ Vì hệ thống chạy rất nhiều dịch vụ nặng cùng lúc (Kafka, Spar
 | Tiêu chí | Cấu hình đề xuất |
 | :--- | :--- |
 | **RAM** | **12 GB trở lên** (Khuyến nghị 16 GB để chạy mượt mà) |
-| **CPU** | 4 nhân trở lên |
+| **CPU** | **4 nhân trở lên** (Minikube cần ≥2 core cho hệ thống, Spark Worker cần thêm ≥2 core để speed-layer và batch ingest chạy song song không tranh nhau) |
 | **Ổ cứng** | Trống tối thiểu **20 GB** |
 | **Công cụ (Windows)** | **Docker Desktop** đã được cài đặt và đang chạy |
 | **Công cụ (Linux)** | **Docker Engine** (`docker-ce`) đã được cài đặt và đang chạy |
@@ -232,6 +232,42 @@ minikube stop
 # 3. (Tùy chọn) Xóa hoàn toàn máy ảo Minikube để giải phóng ổ cứng (Sẽ mất hết dữ liệu cấu hình)
 minikube delete
 ```
+
+---
+
+## 📊 Phân phối tài nguyên (Resource Allocation)
+
+Hệ thống sử dụng hai mức tài nguyên cho mỗi Pod:
+- **`requests`**: Lượng tài nguyên K8s "đặt chỗ" khi lên lịch pod vào node. Tổng requests của tất cả pod phải nhỏ hơn capacity của node.
+- **`limits`**: Giới hạn tối đa pod được phép sử dụng. Có thể vượt tổng capacity (overcommit) vì các pod không dùng tối đa cùng lúc. Pod bị OOMKill nếu vượt memory limit, bị throttle nếu vượt CPU limit.
+
+### Cấu hình hiện tại (Minikube: 4 CPU · 12 GB RAM)
+
+| Service | CPU Request → Limit | Memory Request → Limit | Vai trò |
+| :--- | :--- | :--- | :--- |
+| **airflow-scheduler** | 200m → 1000m | 512Mi → 2Gi | Điều phối và chạy DAG tasks |
+| **airflow-webserver** | 200m → 1000m | 512Mi → 2Gi | Giao diện web Airflow |
+| **kafka** | 200m → 1000m | 512Mi → 1Gi | Message broker |
+| **kafka-connect** | 200m → 1000m | 512Mi → 3Gi | Sink dữ liệu từ Kafka → MinIO |
+| **clickhouse** | 200m → 1000m | 512Mi → 2Gi | Data warehouse |
+| **spark-master** | 200m → 1000m | 512Mi → 1Gi | Điều phối Spark cluster |
+| **spark-worker** | 200m → 1000m | 512Mi → 2Gi | Thực thi Spark jobs |
+| **speed-layer** | 200m → 1000m | 512Mi → 1536Mi | Xử lý stream realtime |
+| **superset** | 200m → 1000m | 512Mi → 1Gi | Giao diện trực quan hóa |
+| **minio** | 100m → 500m | 256Mi → 1Gi | Object storage (Data Lake) |
+| **postgres** | 100m → 500m | 256Mi → 512Mi | Metadata database cho Airflow |
+| **batch-consumer** | 100m → 500m | 256Mi → 512Mi | Consumer Kafka → MinIO |
+| **Tổng requests** | **2100m (52%)** | **5.25 GB (40%)** | |
+| **Tổng limits** | 10500m (262%) | ~18 GB (139%) |  |
+
+> [!NOTE]
+> **Tại sao `requests` thấp hơn `limits` nhiều?** Requests thấp giúp K8s có thể schedule tất cả pod lên node. Còn limits cao để các pod như kafka-connect (cần 3GB khi khởi động) hay airflow-scheduler (cần 2GB khi chạy Spark job) có đủ bộ nhớ thực tế. Các pod không bao giờ dùng hết tài nguyên cùng một lúc nên overcommit là an toàn.
+
+### Cơ chế quản lý xung đột Spark
+
+Spark Worker chỉ có **1 core** (giới hạn bởi `limits.cpu: 1000m`). Để tránh speed-layer và batch ingest tranh nhau core duy nhất đó, DAG tự động:
+1. **Tạm dừng** speed-layer (`replicas=0`) trước khi chạy batch ingest
+2. **Khôi phục** speed-layer (`replicas=1`) sau khi batch ingest hoàn tất (kể cả khi ingest thất bại)
 
 ---
 

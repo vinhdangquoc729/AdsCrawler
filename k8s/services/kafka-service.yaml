@@ -15,4 +15,7 @@ spec:
       port: 29092
       targetPort: 29092
       nodePort: 30029
+    - name: controller
+      port: 29093
+      targetPort: 29093
   type: NodePort

@@ -7,6 +7,13 @@ data:
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  # Remote logging → MinIO
+  AIRFLOW__LOGGING__REMOTE_LOGGING: "True"
+  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "s3://marketing-datalake/airflow-logs"
+  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "aws_default"
+  AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: "False"
+  # Point aws_default connection to MinIO
+  AIRFLOW_CONN_AWS_DEFAULT: "aws://admin:password123@?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1"
   _AIRFLOW_WWW_USER_CREATE: "true"
   _AIRFLOW_WWW_USER_USERNAME: admin
   _AIRFLOW_WWW_USER_EMAIL: admin@example.com

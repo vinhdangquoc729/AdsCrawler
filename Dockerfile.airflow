@@ -28,4 +28,5 @@ RUN mkdir -p /opt/airflow/jars && \
 RUN chown -R airflow: /opt/airflow/jars
 
 USER airflow
-RUN pip install --no-cache-dir kafka-python requests confluent-kafka pyspark==${SPARK_VERSION}
+RUN pip install --no-cache-dir kafka-python requests confluent-kafka pyspark==${SPARK_VERSION} \
+    minio openpyxl pandas
