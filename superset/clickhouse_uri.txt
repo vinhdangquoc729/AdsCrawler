@@ -1,2 +1,2 @@
 clickhousedb://admin:password123@mkt_clickhouse:8123/marketing_db
-clickhousedb://admin:password123@192.168.49.2:30123/marketing_db
+clickhousedb://admin:password123@103.102.131.30:8123/marketing_db

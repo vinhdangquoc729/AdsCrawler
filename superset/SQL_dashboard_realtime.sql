@@ -10,11 +10,11 @@ SELECT
     ds.campaign_id AS campaign_id,
     dc.campaign_name AS campaign_name,
     SUM(f.spend) AS total_spend
-FROM marketing_db.fact_fb_ad_daily f
-JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
-JOIN marketing_db.dim_date dd ON f.date_start = dd.date
+FROM marketing_db.rt_fact_fb_ad_daily f
+JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
+JOIN marketing_db.rt_dim_date dd ON f.date_start = dd.date
 GROUP BY
     f.date_start,
     dd.year,
@@ -46,10 +46,10 @@ SELECT
     round(SUM(f.spend) / nullIf(SUM(f.clicks), 0), 2) AS cpc,
     round((SUM(f.spend) / nullIf(SUM(f.impressions), 0)) * 1000, 2) AS cpm,
     round((SUM(f.new_messaging_connections) / nullIf(SUM(f.clicks), 0)) * 100, 2) AS message_rate
-FROM marketing_db.fact_fb_ad_daily f
-JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
+FROM marketing_db.rt_fact_fb_ad_daily f
+JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
 GROUP BY f.date_start, dc.campaign_name
 ORDER BY f.date_start ASC;
 
@@ -68,11 +68,11 @@ SELECT
     round(SUM(f.spend), 2) AS total_spend,
     SUM(f.impressions) AS total_impressions,
     (SUM(f.spend) / nullIf(SUM(f.impressions), 0)) * 1000 AS cpm
-FROM marketing_db.fact_fb_ad_daily f
-JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
-JOIN marketing_db.dim_date dd ON f.date_start = dd.date
+FROM marketing_db.rt_fact_fb_ad_daily f
+JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
+JOIN marketing_db.rt_dim_date dd ON f.date_start = dd.date
 GROUP BY
     f.date_start,
     dd.year,
@@ -126,12 +126,12 @@ SELECT
     round(SUM(f.spend) / nullIf(SUM(f.clicks), 0), 2) AS cpc,
     round((SUM(f.spend) / nullIf(SUM(f.impressions), 0)) * 1000, 2) AS cpm,
     round((SUM(f.new_messaging_connections) / nullIf(SUM(f.clicks), 0)) * 100, 2) AS message_rate
-FROM marketing_db.fact_fb_ad_daily f
-JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
-JOIN marketing_db.dim_date dd ON f.date_start = dd.date
+FROM marketing_db.rt_fact_fb_ad_daily f
+JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
+JOIN marketing_db.rt_dim_date dd ON f.date_start = dd.date
 GROUP BY
     f.date_start,
     dd.year,
@@ -181,11 +181,11 @@ SELECT
     (SUM(f.spend) / nullIf(SUM(f.clicks), 0)) AS cpc,
     (SUM(f.spend) / nullIf(SUM(f.impressions), 0)) * 1000 AS cpm,
     (SUM(f.new_messaging_connections) / nullIf(SUM(f.clicks), 0)) * 100 AS message_rate
-FROM marketing_db.fact_fb_ad_demographic_daily f
-JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-JOIN marketing_db.dim_ad a ON f.ad_id = a.ad_id
-JOIN marketing_db.dim_adset s ON a.adset_id = s.adset_id
-JOIN marketing_db.dim_campaign c ON s.campaign_id = c.campaign_id
+FROM marketing_db.rt_fact_fb_ad_demographic_daily f
+JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+JOIN marketing_db.rt_dim_ad a ON f.ad_id = a.ad_id
+JOIN marketing_db.rt_dim_adset s ON a.adset_id = s.adset_id
+JOIN marketing_db.rt_dim_campaign c ON s.campaign_id = c.campaign_id
 WHERE f.gender != 'unknown'
 GROUP BY 
     f.date_start,
@@ -228,11 +228,11 @@ FROM (
         f.link_clicks AS link_clicks,
         f.landing_page_views AS landing_page_views,
         f.new_messaging_connections AS new_messaging_connections
-    FROM marketing_db.fact_fb_ad_daily f
-    JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-    JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-    JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-    JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
+    FROM marketing_db.rt_fact_fb_ad_daily f
+    JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+    JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+    JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+    JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
 ) AS base
 
 UNION ALL
@@ -264,11 +264,11 @@ FROM (
         f.link_clicks AS link_clicks,
         f.landing_page_views AS landing_page_views,
         f.new_messaging_connections AS new_messaging_connections
-    FROM marketing_db.fact_fb_ad_daily f
-    JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-    JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-    JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-    JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
+    FROM marketing_db.rt_fact_fb_ad_daily f
+    JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+    JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+    JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+    JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
 ) AS base
 
 UNION ALL
@@ -300,11 +300,11 @@ FROM (
         f.link_clicks AS link_clicks,
         f.landing_page_views AS landing_page_views,
         f.new_messaging_connections AS new_messaging_connections
-    FROM marketing_db.fact_fb_ad_daily f
-    JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-    JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-    JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-    JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
+    FROM marketing_db.rt_fact_fb_ad_daily f
+    JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+    JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+    JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+    JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
 ) AS base
 
 UNION ALL
@@ -336,11 +336,11 @@ FROM (
         f.link_clicks AS link_clicks,
         f.landing_page_views AS landing_page_views,
         f.new_messaging_connections AS new_messaging_connections
-    FROM marketing_db.fact_fb_ad_daily f
-    JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-    JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-    JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-    JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
+    FROM marketing_db.rt_fact_fb_ad_daily f
+    JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+    JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+    JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+    JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
 ) AS base
 
 UNION ALL
@@ -372,11 +372,11 @@ FROM (
         f.link_clicks AS link_clicks,
         f.landing_page_views AS landing_page_views,
         f.new_messaging_connections AS new_messaging_connections
-    FROM marketing_db.fact_fb_ad_daily f
-    JOIN marketing_db.dim_account acc ON f.account_id = acc.account_id
-    JOIN marketing_db.dim_ad da ON f.ad_id = da.ad_id
-    JOIN marketing_db.dim_adset ds ON da.adset_id = ds.adset_id
-    JOIN marketing_db.dim_campaign dc ON ds.campaign_id = dc.campaign_id
+    FROM marketing_db.rt_fact_fb_ad_daily f
+    JOIN marketing_db.rt_dim_account acc ON f.account_id = acc.account_id
+    JOIN marketing_db.rt_dim_ad da ON f.ad_id = da.ad_id
+    JOIN marketing_db.rt_dim_adset ds ON da.adset_id = ds.adset_id
+    JOIN marketing_db.rt_dim_campaign dc ON ds.campaign_id = dc.campaign_id
 ) AS base;
 
 -- =============================================================================
@@ -403,8 +403,8 @@ SELECT
         round(SUM(f.cost) / SUM(f.all_conversions), 2),
         0.0
     ) AS cost_per_conversion
-FROM marketing_db.fact_gg_campaign_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
+FROM marketing_db.rt_fact_gg_campaign_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
 GROUP BY f.date, dc.campaign_name
 ORDER BY f.date ASC;
 
@@ -441,8 +441,8 @@ SELECT
     (SUM(f.clicks) / nullIf(SUM(f.impressions), 0)) * 100 AS ctr,
     SUM(f.cost) / nullIf(SUM(f.clicks), 0) AS cpc,
     SUM(f.cost) / nullIf(SUM(f.all_conversions), 0) AS cost_per_conversion
-FROM marketing_db.fact_gg_age_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
+FROM marketing_db.rt_fact_gg_age_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
 WHERE f.age_range != ''
 GROUP BY f.date, dc.campaign_name, f.device, age_range, age_order
 ORDER BY f.date ASC, age_order ASC;
@@ -462,8 +462,8 @@ SELECT
     (SUM(f.clicks) / nullIf(SUM(f.impressions), 0)) * 100 AS ctr,
     SUM(f.cost) / nullIf(SUM(f.clicks), 0) AS cpc,
     SUM(f.cost) / nullIf(SUM(f.all_conversions), 0) AS cost_per_conversion
-FROM marketing_db.fact_gg_gender_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
+FROM marketing_db.rt_fact_gg_gender_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
 WHERE f.gender != ''
 GROUP BY f.date, dc.campaign_name, f.device, f.gender
 ORDER BY f.date ASC, f.gender ASC;
@@ -486,9 +486,9 @@ SELECT
     (SUM(f.clicks) / nullIf(SUM(f.impressions), 0)) * 100 AS ctr,
     SUM(f.cost) / nullIf(SUM(f.clicks), 0) AS cpc,
     SUM(f.cost) / nullIf(SUM(f.conversions), 0) AS cost_per_conversion
-FROM marketing_db.fact_gg_keyword_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
-JOIN marketing_db.dim_gg_adgroup dg ON f.adgroup_id = dg.adgroup_id
+FROM marketing_db.rt_fact_gg_keyword_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
+JOIN marketing_db.rt_dim_gg_adgroup dg ON f.adgroup_id = dg.adgroup_id
 GROUP BY f.date, dc.campaign_name, dg.adgroup_name, f.keyword, f.device
 ORDER BY total_spend DESC;
 
@@ -506,13 +506,11 @@ SELECT
     SUM(f.impressions) AS total_impressions,
     SUM(f.clicks) AS total_clicks,
     (SUM(f.clicks) / nullIf(SUM(f.impressions), 0)) * 100 AS ctr,
-    SUM(f.cost) / nullIf(SUM(f.clicks), 0) AS cpc,
-    SUM(f.cost) / nullIf(SUM(f.impressions), 0) * 1000 AS cpm,
     SUM(f.all_conversions) AS total_conversions
-FROM marketing_db.fact_gg_asset_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
-JOIN marketing_db.dim_gg_adgroup dg ON f.adgroup_id = dg.adgroup_id
-JOIN marketing_db.dim_gg_asset da ON f.asset_id = da.asset_id
+FROM marketing_db.rt_fact_gg_asset_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
+JOIN marketing_db.rt_dim_gg_adgroup dg ON f.adgroup_id = dg.adgroup_id
+JOIN marketing_db.rt_dim_gg_asset da ON f.asset_id = da.asset_id
 GROUP BY f.date, dc.campaign_name, dg.adgroup_name, da.asset_name, da.asset_type, f.asset_performance
 ORDER BY total_spend DESC;
 
@@ -530,8 +528,8 @@ SELECT
     SUM(f.clicks) AS total_clicks,
     SUM(f.conversions) AS total_conversions,
     (SUM(f.clicks) / nullIf(SUM(f.impressions), 0)) * 100 AS ctr
-FROM marketing_db.fact_gg_click_type_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
+FROM marketing_db.rt_fact_gg_click_type_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
 GROUP BY f.date, dc.campaign_name, f.click_type, f.device, f.ad_network_type
 ORDER BY total_spend DESC;
 
@@ -548,9 +546,9 @@ SELECT
     f.campaign_id AS campaign_id,
     dc.campaign_name AS campaign_name,
     SUM(f.cost) AS total_spend
-FROM marketing_db.fact_gg_campaign_daily f
-JOIN marketing_db.dim_campaign dc ON f.campaign_id = dc.campaign_id
-JOIN marketing_db.dim_date dd ON f.date = dd.date
+FROM marketing_db.rt_fact_gg_campaign_daily f
+JOIN marketing_db.rt_dim_campaign dc ON f.campaign_id = dc.campaign_id
+JOIN marketing_db.rt_dim_date dd ON f.date = dd.date
 GROUP BY
     f.date,
     dd.year,
@@ -592,9 +590,9 @@ SELECT
     round(SUM(f.spend) / nullIf(SUM(f.conversion), 0), 2) AS cost_per_conversion,
     round((SUM(f.conversion) / nullIf(SUM(f.clicks), 0)) * 100, 2) AS conversion_rate,
     round(SUM(f.total_onsite_shopping_value) / nullIf(SUM(f.spend), 0), 4) AS shopping_roas
-FROM marketing_db.fact_tta_ad_daily f
-JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+FROM marketing_db.rt_fact_tta_ad_daily f
+JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
 GROUP BY
     f.date,
     year,
@@ -620,9 +618,9 @@ SELECT
     adv.advertiser_name,
     ad.campaign_name,
     round(SUM(f.spend), 2) AS total_spend
-FROM marketing_db.fact_tta_ad_daily f
-JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+FROM marketing_db.rt_fact_tta_ad_daily f
+JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
 GROUP BY
     f.date,
     year,
@@ -658,9 +656,9 @@ SELECT
     round(((SUM(f.likes) + SUM(f.comments) + SUM(f.shares)) / nullIf(SUM(f.impressions), 0)) * 100, 2) AS engagement_rate,
     round((SUM(f.video_play_actions) / nullIf(SUM(f.impressions), 0)) * 100, 2) AS video_play_rate,
     round((SUM(f.follows) / nullIf(SUM(f.profile_visits), 0)) * 100, 2) AS follow_rate_from_profile
-FROM marketing_db.fact_tta_ad_daily f
-JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+FROM marketing_db.rt_fact_tta_ad_daily f
+JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
 GROUP BY
     f.date,
     f.advertiser_id,
@@ -698,9 +696,9 @@ FROM (
         SUM(f.conversion) AS total_conversions,
         SUM(f.purchase) AS total_purchases,
         SUM(f.onsite_shopping) AS total_onsite_shopping
-    FROM marketing_db.fact_tta_ad_daily f
-    JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-    JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+    FROM marketing_db.rt_fact_tta_ad_daily f
+    JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+    JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
     GROUP BY
         f.date,
         f.advertiser_id,
@@ -738,9 +736,9 @@ FROM (
         SUM(f.conversion) AS total_conversions,
         SUM(f.purchase) AS total_purchases,
         SUM(f.onsite_shopping) AS total_onsite_shopping
-    FROM marketing_db.fact_tta_ad_daily f
-    JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-    JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+    FROM marketing_db.rt_fact_tta_ad_daily f
+    JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+    JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
     GROUP BY
         f.date,
         f.advertiser_id,
@@ -778,9 +776,9 @@ FROM (
         SUM(f.conversion) AS total_conversions,
         SUM(f.purchase) AS total_purchases,
         SUM(f.onsite_shopping) AS total_onsite_shopping
-    FROM marketing_db.fact_tta_ad_daily f
-    JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-    JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+    FROM marketing_db.rt_fact_tta_ad_daily f
+    JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+    JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
     GROUP BY
         f.date,
         f.advertiser_id,
@@ -818,9 +816,9 @@ FROM (
         SUM(f.conversion) AS total_conversions,
         SUM(f.purchase) AS total_purchases,
         SUM(f.onsite_shopping) AS total_onsite_shopping
-    FROM marketing_db.fact_tta_ad_daily f
-    JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-    JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+    FROM marketing_db.rt_fact_tta_ad_daily f
+    JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+    JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
     GROUP BY
         f.date,
         f.advertiser_id,
@@ -858,9 +856,9 @@ FROM (
         SUM(f.conversion) AS total_conversions,
         SUM(f.purchase) AS total_purchases,
         SUM(f.onsite_shopping) AS total_onsite_shopping
-    FROM marketing_db.fact_tta_ad_daily f
-    JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-    JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+    FROM marketing_db.rt_fact_tta_ad_daily f
+    JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+    JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
     GROUP BY
         f.date,
         f.advertiser_id,
@@ -891,9 +889,9 @@ SELECT
     round(SUM(f.spend) / nullIf(SUM(f.clicks), 0), 2) AS cpc,
     round(SUM(f.spend) / nullIf(SUM(f.conversion), 0), 2) AS cost_per_conversion,
     round(SUM(f.total_onsite_shopping_value) / nullIf(SUM(f.spend), 0), 4) AS shopping_roas
-FROM marketing_db.fact_tta_ad_daily f
-JOIN marketing_db.dim_tta_ad ad ON f.ad_id = ad.ad_id
-JOIN marketing_db.dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
+FROM marketing_db.rt_fact_tta_ad_daily f
+JOIN marketing_db.rt_dim_tta_ad ad ON f.ad_id = ad.ad_id
+JOIN marketing_db.rt_dim_tta_advertiser adv ON f.advertiser_id = adv.advertiser_id
 GROUP BY
     f.date,
     f.advertiser_id,
