@@ -26,7 +26,10 @@ with DAG(
     t1_minio_ingest = BashOperator(
         task_id='minio_to_clickhouse_ingest',
         bash_command="""
+            DRIVER_IP=$(hostname -i | awk '{print $1}') && \
             spark-submit --master spark://spark-master:7077 \
+            --conf spark.driver.host=$DRIVER_IP \
+            --conf spark.driver.bindAddress=0.0.0.0 \
             --conf spark.cores.max=8 \
             --conf spark.executor.memory=1g \
             --jars /opt/airflow/jars/clickhouse-jdbc.jar,\
