@@ -1,6 +1,13 @@
-FROM apache/superset:latest
+FROM apache/superset:6.1.0
 
 USER root
-RUN pip install --no-cache-dir --target=/app/pythonpath clickhouse-connect
+
+RUN . /app/.venv/bin/activate && \
+    uv pip install \
+    clickhouse-connect>=0.13.0
+
 COPY superset/superset_config.py /app/pythonpath/superset_config.py
+
 USER superset
+
+CMD ["/app/docker/entrypoints/run-server.sh"]
