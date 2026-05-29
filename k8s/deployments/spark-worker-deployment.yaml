@@ -20,10 +20,15 @@ spec:
             - /opt/spark/bin/spark-class
             - org.apache.spark.deploy.worker.Worker
             - spark://spark-master:7077
+          env:
+            - name: SPARK_WORKER_MEMORY
+              value: "3G"
+            - name: SPARK_WORKER_CORES
+              value: "2"
           resources:
             requests:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "200m"
             limits:
-              memory: "2Gi"
+              memory: "4Gi"
               cpu: "2000m"
