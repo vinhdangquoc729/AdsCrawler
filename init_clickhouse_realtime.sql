@@ -871,6 +871,35 @@ AS SELECT * FROM marketing_db.kafka_rt_gad_click_type_report;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 17b. processed_dim_gg_campaign
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS marketing_db.kafka_rt_dim_gg_campaign
+(
+    campaign_id   String,
+    campaign_name String
+) ENGINE = Kafka
+SETTINGS
+    kafka_broker_list = 'kafka:29092',
+    kafka_topic_list  = 'processed_dim_gg_campaign',
+    kafka_group_name  = 'ch_rt_consumer',
+    kafka_format      = 'JSONEachRow';
+
+CREATE TABLE IF NOT EXISTS marketing_db.rt_dim_gg_campaign
+(
+    campaign_id   String,
+    campaign_name String,
+    updated_at    DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY campaign_id
+TTL toDate(updated_at) + INTERVAL 1 DAY;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS marketing_db.mv_rt_dim_gg_campaign
+TO marketing_db.rt_dim_gg_campaign
+AS SELECT * FROM marketing_db.kafka_rt_dim_gg_campaign;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 18. processed_dim_gg_adgroup
 -- ─────────────────────────────────────────────────────────────────────────────
 

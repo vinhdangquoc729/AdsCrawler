@@ -48,6 +48,14 @@ speed-layer-logs:
 
 # --- Docker Compose (local dev) ---
 
+build:
+	docker build -f Dockerfile.airflow -t mkt_airflow:latest .
+	docker build -f Dockerfile.superset -t mkt_superset:latest .
+	docker build -f Dockerfile.clickhouse -t mkt_clickhouse:latest .
+	minikube image load mkt_airflow:latest
+	minikube image load mkt_superset:latest
+	minikube image load mkt_clickhouse:latest
+
 compose-up:
 	docker compose up -d --build
 

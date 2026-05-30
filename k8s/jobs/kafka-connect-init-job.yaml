@@ -12,11 +12,6 @@ spec:
       containers:
         - name: init
           image: curlimages/curl:latest
-          volumeMounts:
-            - mountPath: /s3-config.json
-              name: s3-config
-            - mountPath: /jdbc-config.json
-              name: jdbc-config
           command:
             - /bin/sh
             - -c
@@ -26,25 +21,62 @@ spec:
                 sleep 5
               done
               echo "Kafka Connect is ready!"
-              
+
               echo "Registering S3 Sink Connector..."
               curl -s -X PUT http://kafka-connect:8083/connectors/minio-s3-sink/config \
                 -H "Content-Type: application/json" \
-                -d @/s3-config.json
-                
+                -d '{
+                  "connector.class": "io.confluent.connect.s3.S3SinkConnector",
+                  "tasks.max": "1",
+                  "topics": "fad_ad_daily_report,fad_age_gender_detailed_report,gad_campaign_daily_report,gad_ad_group_daily_report,gad_account_daily_report,gad_keyword_performance_report,gad_age_report,gad_gender_report,gad_ad_asset_daily_report,gad_click_type_report,TTA_ad_performance",
+                  "s3.bucket.name": "marketing-datalake",
+                  "s3.region": "us-east-1",
+                  "store.url": "http://minio:9000",
+                  "storage.class": "io.confluent.connect.s3.storage.S3Storage",
+                  "format.class": "io.confluent.connect.s3.format.json.JsonFormat",
+                  "partitioner.class": "io.confluent.connect.storage.partitioner.TimeBasedPartitioner",
+                  "partition.duration.ms": "86400000",
+                  "path.format": "'"'"'year'"'"'=YYYY/'"'"'month'"'"'=MM/'"'"'day'"'"'=dd",
+                  "locale": "vi-VN",
+                  "timezone": "Asia/Ho_Chi_Minh",
+                  "timestamp.extractor": "Record",
+                  "flush.size": "1000",
+                  "rotate.interval.ms": "-1",
+                  "rotate.schedule.interval.ms": "60000",
+                  "topics.dir": "",
+                  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+                  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+                  "value.converter.schemas.enable": "false",
+                  "aws.access.key.id": "admin",
+                  "aws.secret.access.key": "password123"
+                }'
+
               echo "Registering JDBC Sink Connector..."
               curl -s -X PUT http://kafka-connect:8083/connectors/clickhouse-jdbc-sink/config \
                 -H "Content-Type: application/json" \
-                -d @/jdbc-config.json
-                
+                -d '{
+                  "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+                  "tasks.max": "1",
+                  "topics": "processed_dim_account,processed_dim_campaign,processed_dim_adset,processed_dim_ad,processed_dim_creative,processed_dim_date,processed_fact_fb_ad_daily,processed_fact_fb_ad_creative_daily,processed_fact_fb_ad_demographic_daily,processed_fad_ad_daily_report",
+                  "connection.url": "jdbc:clickhouse://clickhouse:8123/marketing_db?ssl=false",
+                  "connection.user": "admin",
+                  "connection.password": "password123",
+                  "insert.mode": "insert",
+                  "pk.mode": "none",
+                  "auto.create": "false",
+                  "auto.evolve": "false",
+                  "table.name.format": "${topic}",
+                  "transforms": "stripPrefix",
+                  "transforms.stripPrefix.type": "org.apache.kafka.connect.transforms.RegexRouter",
+                  "transforms.stripPrefix.regex": "processed_(.*)",
+                  "transforms.stripPrefix.replacement": "$1",
+                  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+                  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+                  "value.converter.schemas.enable": "false",
+                  "errors.tolerance": "all",
+                  "errors.deadletterqueue.topic.name": "dlq_speed_layer",
+                  "errors.deadletterqueue.topic.replication.factor": "1"
+                }'
+
               echo "All connectors successfully registered!"
-      volumes:
-        - name: s3-config
-          hostPath:
-            path: /opt/spark/work-dir/kafka-connect/connect-s3-sink.json
-            type: File
-        - name: jdbc-config
-          hostPath:
-            path: /opt/spark/work-dir/kafka-connect/connect-jdbc-sink.json
-            type: File
       restartPolicy: OnFailure

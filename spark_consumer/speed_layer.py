@@ -21,7 +21,7 @@ Speed Layer: Spark Structured Streaming
     processed_fad_ad_daily_report
     processed_fact_fb_ad_demographic_daily
 
-  Google output topics (17):
+  Google output topics (18):
     processed_gad_campaign_daily_report
     processed_gad_ad_group_daily_report
     processed_gad_account_daily_report
@@ -30,6 +30,7 @@ Speed Layer: Spark Structured Streaming
     processed_gad_gender_report
     processed_gad_ad_asset_daily_report
     processed_gad_click_type_report
+    processed_dim_gg_campaign
     processed_dim_gg_adgroup
     processed_dim_gg_asset
     processed_fact_gg_campaign_daily
@@ -102,6 +103,7 @@ TOPIC_FACT_DEMOGRAPHIC = "processed_fact_fb_ad_demographic_daily"
 TOPIC_FAD_REPORT       = "processed_fad_ad_daily_report"
 
 # Google processed output topics
+TOPIC_DIM_GG_CAMPAIGN     = "processed_dim_gg_campaign"
 TOPIC_GG_CAMPAIGN_DAILY   = "processed_gad_campaign_daily_report"
 TOPIC_GG_ADGROUP_DAILY    = "processed_gad_ad_group_daily_report"
 TOPIC_GG_ACCOUNT_DAILY    = "processed_gad_account_daily_report"
@@ -601,6 +603,10 @@ def process_google_batch(batch_df: DataFrame, epoch_id: int) -> None:
         F.coalesce(F.col("cost").cast("float"),   F.lit(0.0)).alias("cost"),
         F.coalesce(F.col("all_conversions"),      F.lit(0)).alias("all_conversions"),
         F.coalesce(F.col("ctr").cast("float"),    F.lit(0.0)).alias("ctr"),
+    )
+    produce_to_kafka(
+        base_camp.select("campaign_id", "campaign_name").dropDuplicates(["campaign_id"]),
+        TOPIC_DIM_GG_CAMPAIGN,
     )
     produce_to_kafka(base_camp, TOPIC_GG_CAMPAIGN_DAILY)
     produce_to_kafka(

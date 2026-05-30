@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: clickhouse
-          image: clickhouse/clickhouse-server:latest
+          image: mkt_clickhouse:latest
+          imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: clickhouse-secret
@@ -36,10 +37,6 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/clickhouse
               name: clickhouse-storage
-            - mountPath: /docker-entrypoint-initdb.d/01_init.sql
-              name: clickhouse-init-1
-            - mountPath: /docker-entrypoint-initdb.d/02_realtime.sql
-              name: clickhouse-init-2
           readinessProbe:
             httpGet:
               path: /ping
@@ -50,11 +47,3 @@ spec:
         - name: clickhouse-storage
           persistentVolumeClaim:
             claimName: clickhouse-pvc
-        - name: clickhouse-init-1
-          hostPath:
-            path: /opt/spark/work-dir/init_clickhouse.sql
-            type: File
-        - name: clickhouse-init-2
-          hostPath:
-            path: /opt/spark/work-dir/init_clickhouse_realtime.sql
-            type: File

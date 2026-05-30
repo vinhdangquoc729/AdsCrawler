@@ -360,6 +360,14 @@ ORDER BY (campaign_id, click_type, device, date);
 -- Google Ads: snowflake schema  (dim_gg_ / fact_gg_ prefix, mirrors FB dims)
 -- ─────────────────────────────────────────────────────────────────────────────
 
+CREATE TABLE IF NOT EXISTS marketing_db.dim_gg_campaign
+(
+    campaign_id   String,
+    campaign_name String,
+    updated_at    DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY campaign_id;
+
 CREATE TABLE IF NOT EXISTS marketing_db.dim_gg_adgroup
 (
     adgroup_id   String,

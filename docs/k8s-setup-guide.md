@@ -99,6 +99,7 @@ Dự án sử dụng các Docker image tùy biến (tự viết Dockerfile riên
 ```bash
 docker build -f Dockerfile.airflow -t mkt_airflow:latest .
 docker build -f Dockerfile.superset -t mkt_superset:latest .
+docker build -f Dockerfile.clickhouse -t mkt_clickhouse:latest .
 ```
 
 ---
@@ -110,27 +111,13 @@ Vì Minikube hoạt động trong một môi trường cô lập (máy ảo riê
 ```bash
 minikube image load mkt_airflow:latest
 minikube image load mkt_superset:latest
+minikube image load mkt_clickhouse:latest
 ```
-*(Quá trình tải ảnh vào máy ảo có thể mất 1-2 phút cho mỗi lệnh.)*
+*(Quá trình tải image vào máy ảo có thể mất 1-2 phút cho mỗi lệnh.)*
 
 ---
 
-### 📌 Bước 5: Cầu nối thư mục (Mount dự án)
-
-Để các dịch vụ bên trong K8s (như Spark để chạy code, Airflow để đọc DAGs, ClickHouse để nạp dữ liệu khởi tạo) có thể đọc được mã nguồn trên máy tính của bạn, chúng ta cần thực hiện một cầu nối dữ liệu:
-
-1.  Mở một cửa sổ terminal mới độc lập (**Terminal 2**).
-2.  Chạy lệnh mount từ thư mục gốc dự án:
-    ```bash
-    minikube mount .:/opt/spark/work-dir
-    ```
-
-> [!IMPORTANT]
-> **Không được đóng terminal này!** Hãy giữ terminal này luôn mở trong suốt quá trình làm việc. Nếu đóng cửa sổ này, kết nối giữa máy tính và máy ảo Minikube sẽ bị ngắt, dẫn đến việc Airflow không thấy DAGs và Clickhouse/Spark không đọc được code.
-
----
-
-### 📌 Bước 6: Khởi chạy toàn bộ hệ thống K8s
+### 📌 Bước 5: Khởi chạy toàn bộ hệ thống K8s
 
 Quay lại cửa sổ terminal chính (**Terminal 1**), chạy lệnh duy nhất sau để tự động cấu hình và khởi động mọi Pod, Service và Job:
 
@@ -204,17 +191,63 @@ make kafka-connect-ui    # Mở giao diện API kết nối Kafka Connect
 
 ---
 
-## 📥 Tạo Kafka Topic (Chỉ thực hiện một lần)
+## 📥 Tạo Kafka Topics và đăng ký Connectors (Bắt buộc sau mỗi lần fresh start)
 
-Sau khi kiểm tra thấy Kafka chuyển sang trạng thái `Running`, hãy chạy lệnh sau để tạo topic phục vụ việc truyền nhận dữ liệu thời gian thực:
+Kafka không tự tạo topic khi có producer ghi vào. Nếu bỏ qua bước này, `speed-layer` sẽ bị lỗi `UnknownTopicOrPartitionException` và crash liên tục.
+
+### Tạo 11 raw input topics
+
+Sau khi Kafka chuyển sang trạng thái `Running`, chạy một lệnh duy nhất:
 
 ```bash
-# 1. Lấy tên chính xác của Pod Kafka đang chạy:
-kubectl get pods -n marketing | grep kafka
-
-# 2. Tạo topic nhận tin (Thay <tên-pod-kafka> bằng tên hiển thị ở lệnh trên)
-kubectl exec -n marketing <tên-pod-kafka> -- kafka-topics --create --topic topic_fb_raw --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+kubectl exec -n marketing deployment/kafka -- bash -c "
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic fad_ad_daily_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic fad_age_gender_detailed_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic TTA_ad_performance &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_campaign_daily_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_ad_group_daily_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_account_daily_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_keyword_performance_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_age_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_gender_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_ad_asset_daily_report &&
+kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic gad_click_type_report
+"
 ```
+
+Sau đó restart speed-layer để nhận diện topics mới:
+
+```bash
+kubectl rollout restart deployment/speed-layer -n marketing
+```
+
+### Đăng ký Kafka Connectors
+
+Sau khi `kafka-connect` chuyển sang `Running`, đăng ký 2 connectors (S3 Sink → MinIO và JDBC Sink → ClickHouse):
+
+```bash
+# S3 Sink connector (Kafka → MinIO)
+kubectl exec -n marketing deployment/kafka-connect -- \
+  curl -s -X POST http://localhost:8083/connectors \
+  -H "Content-Type: application/json" \
+  -d @/opt/spark/work-dir/kafka-connect/connect-s3-sink.json
+
+# JDBC Sink connector (Kafka processed_* → ClickHouse rt_* tables)
+kubectl exec -n marketing deployment/kafka-connect -- \
+  curl -s -X POST http://localhost:8083/connectors \
+  -H "Content-Type: application/json" \
+  -d @/opt/spark/work-dir/kafka-connect/connect-jdbc-sink.json
+```
+
+Kiểm tra connector đã đăng ký chưa:
+
+```bash
+kubectl exec -n marketing deployment/kafka-connect -- \
+  curl -s http://localhost:8083/connectors
+```
+
+> [!NOTE]
+> Kafka có PVC (`kafka-pvc`) để lưu trữ dữ liệu topics và connector offsets. Sau khi đã tạo topics và đăng ký connectors một lần, chúng sẽ **tự động phục hồi** sau khi Kafka restart mà không cần làm lại bước này — trừ khi xóa PVC hoặc chạy `minikube delete`.
 
 ---
 
@@ -282,8 +315,13 @@ Spark Worker chỉ có **1 core** (giới hạn bởi `limits.cpu: 1000m`). Đ�
 *   **Cách xử lý:** Đảm bảo đã chạy đúng 2 lệnh `minikube image load` ở **Bước 4**.
 
 ### 3. Airflow không hiển thị các file DAGs
-*   **Nguyên nhân:** Bạn chưa thực hiện lệnh Mount hoặc đã lỡ đóng **Terminal 2** (Terminal chạy lệnh mount).
-*   **Cách xử lý:** Mở lại terminal mới và chạy lại lệnh ở **Bước 5**: `minikube mount .:/opt/spark/work-dir`.
+*   **Nguyên nhân:** DAGs được bake vào Docker image lúc build. Nếu không thấy DAG, có thể image cũ chưa được rebuild.
+*   **Cách xử lý:** Rebuild image và load lại vào Minikube:
+    ```bash
+    docker build -f Dockerfile.airflow -t mkt_airflow:latest .
+    minikube image load mkt_airflow:latest
+    kubectl rollout restart deployment/airflow-scheduler deployment/airflow-webserver -n marketing
+    ```
 
 ### 4. (Linux) Lỗi `permission denied` khi chạy lệnh docker
 *   **Nguyên nhân:** User hiện tại chưa được thêm vào group `docker`.
@@ -298,7 +336,20 @@ Spark Worker chỉ có **1 core** (giới hạn bởi `limits.cpu: 1000m`). Đ�
 *   **Nguyên nhân:** Bạn đang chạy lệnh với `sudo` hoặc đang đăng nhập bằng tài khoản `root`.
 *   **Cách xử lý:** Chạy lệnh với tài khoản user thường (không phải root), và đảm bảo user đó đã được thêm vào group `docker` như hướng dẫn ở Bước 1.
 
-### 6. Muốn xem nhật ký hoạt động (Logs) của một Pod để debug
+### 6. `airflow-scheduler` / `airflow-webserver` CrashLoopBackOff với lỗi "You need to initialize the database"
+
+*   **Nguyên nhân:** `airflow-init` job chưa hoàn thành khi scheduler/webserver start. Race condition khi fresh deploy.
+*   **Cách xử lý:** Đợi `airflow-init` chuyển sang `Completed` (khoảng 3-4 phút), scheduler/webserver sẽ tự retry và phục hồi. Nếu không tự phục hồi, chạy thủ công:
+    ```bash
+    kubectl exec -n marketing deployment/airflow-scheduler -- airflow db init
+    ```
+
+### 7. `speed-layer` CrashLoopBackOff với lỗi `UnknownTopicOrPartitionException`
+
+*   **Nguyên nhân:** Kafka topics chưa được tạo.
+*   **Cách xử lý:** Chạy lệnh tạo 11 topics ở mục **📥 Tạo Kafka Topics** ở trên, sau đó restart speed-layer.
+
+### 8. Muốn xem nhật ký hoạt động (Logs) của một Pod để debug
 ```bash
 # Xem log của Pod (Thay <tên-pod> bằng tên pod thực tế)
 kubectl logs -n marketing <tên-pod>

@@ -387,6 +387,10 @@ def process_gg_campaign(df) -> None:
         F.coalesce(F.col("ctr").cast("float"),           F.lit(0.0)).alias("ctr"),
     )
     base.persist()
+    write_ch(
+        base.select("campaign_id", "campaign_name").dropDuplicates(["campaign_id"]),
+        "marketing_db.dim_gg_campaign",
+    )
     write_ch(base, "marketing_db.gad_campaign_daily_report")
     write_ch(
         base.select("campaign_id", "date", "impressions", "clicks", "cost", "all_conversions", "ctr"),

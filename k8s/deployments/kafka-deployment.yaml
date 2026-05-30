@@ -37,3 +37,10 @@ spec:
               port: 9092
             initialDelaySeconds: 30
             periodSeconds: 10
+          volumeMounts:
+            - mountPath: /var/lib/kafka/data
+              name: kafka-storage
+      volumes:
+        - name: kafka-storage
+          persistentVolumeClaim:
+            claimName: kafka-pvc

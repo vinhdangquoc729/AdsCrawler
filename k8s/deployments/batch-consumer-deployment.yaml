@@ -40,15 +40,11 @@ spec:
             - |
               cd /opt/spark/work-dir
               export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir
-              pip install --quiet minio openpyxl pandas confluent-kafka
               while true; do
                 python3 -m ingest.workers.batch_consumer
                 echo 'batch_consumer exited, restarting in 5s...'
                 sleep 5
               done
-          volumeMounts:
-            - mountPath: /opt/spark/work-dir
-              name: project-dir
           resources:
             requests:
               memory: "256Mi"
@@ -56,8 +52,3 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
-      volumes:
-        - name: project-dir
-          hostPath:
-            path: /opt/spark/work-dir
-            type: Directory

@@ -50,9 +50,6 @@ spec:
                 --conf spark.executor.memory=512m \
                 --jars /opt/airflow/jars/spark-sql-kafka.jar,/opt/airflow/jars/kafka-clients.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar,/opt/airflow/jars/spark-token-provider-kafka.jar \
                 /opt/spark/work-dir/spark_consumer/speed_layer.py
-          volumeMounts:
-            - mountPath: /opt/spark/work-dir
-              name: project-dir
           resources:
             requests:
               memory: "512Mi"
@@ -60,8 +57,3 @@ spec:
             limits:
               memory: "1536Mi"
               cpu: "1000m"
-      volumes:
-        - name: project-dir
-          hostPath:
-            path: /opt/spark/work-dir
-            type: Directory
