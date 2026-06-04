@@ -71,7 +71,6 @@ class KafkaJsonProducer:
             self._producer.produce(
                 topic=topic,
                 value=value,
-                timestamp=ts_ms if ts_ms > 0 else 0,
                 callback=self._delivery_callback,
             )
             # Serve delivery callbacks periodically to avoid buffer overflow
