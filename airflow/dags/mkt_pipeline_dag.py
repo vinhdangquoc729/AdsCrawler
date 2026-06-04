@@ -86,5 +86,25 @@ with DAG(
         """
     )
 
-    # DAG: Mock (parallel) → wait flush → Spark ingest
-    [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t1_minio_ingest
+    # Sau khi Spark ghi xong, chạy OPTIMIZE FINAL trên tất cả dimension tables.
+    # Dimension tables dùng ReplacingMergeTree(updated_at) — merge là async.
+    # OPTIMIZE FINAL ép ClickHouse deduplicate ngay lập tức, đảm bảo
+    # Superset query không thấy duplicate dù Spark vừa retry.
+    t2_optimize_dims = BashOperator(
+        task_id='optimize_clickhouse_dims',
+        bash_command="""
+            DIM_TABLES="dim_account dim_campaign dim_adset dim_ad dim_creative dim_date \
+                        dim_gg_campaign dim_gg_adgroup dim_gg_asset \
+                        dim_tta_advertiser dim_tta_ad"
+            for TABLE in $DIM_TABLES; do
+                echo "OPTIMIZE $TABLE..."
+                curl -sf -u admin:password123 http://clickhouse:8123/ \
+                    --data "OPTIMIZE TABLE marketing_db.${TABLE} FINAL DEDUPLICATE" \
+                    || echo "  [WARN] OPTIMIZE failed for $TABLE (non-fatal)"
+            done
+            echo "Optimize dims done."
+        """
+    )
+
+    # DAG: Mock (parallel) → wait flush → Spark ingest → Optimize dims
+    [t0_mock_facebook, t0_mock_google, t0_mock_tiktok] >> t_wait_flush >> t1_minio_ingest >> t2_optimize_dims
