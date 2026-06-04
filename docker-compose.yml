@@ -92,15 +92,7 @@ services:
       - ./kafka-connect/connect-s3-sink.json:/s3-config.json:ro
       - ./kafka-connect/connect-jdbc-sink.json:/jdbc-config.json:ro
     entrypoint: >
-      /bin/sh -c "
-      echo 'Waiting for Kafka Connect...' &&
-      until curl -s http://kafka-connect:8083/connectors > /dev/null; do sleep 5; done &&
-      echo 'Registering S3 Sink Connector...' &&
-      curl -s -X PUT http://kafka-connect:8083/connectors/minio-s3-sink/config -H 'Content-Type: application/json' -d @/s3-config.json &&
-      echo 'Registering JDBC Sink Connector...' &&
-      curl -s -X PUT http://kafka-connect:8083/connectors/clickhouse-jdbc-sink/config -H 'Content-Type: application/json' -d @/jdbc-config.json &&
-      echo 'All connectors registered!'
-      "
+      /bin/sh -c " echo 'Waiting for Kafka Connect...' && until curl -s http://kafka-connect:8083/connectors > /dev/null; do sleep 5; done && echo 'Registering S3 Sink Connector...' && curl -s -X PUT http://kafka-connect:8083/connectors/minio-s3-sink/config -H 'Content-Type: application/json' -d @/s3-config.json && echo 'Registering JDBC Sink Connector...' && curl -s -X PUT http://kafka-connect:8083/connectors/clickhouse-jdbc-sink/config -H 'Content-Type: application/json' -d @/jdbc-config.json && echo 'All connectors registered!' "
     networks:
       - marketing-net
 
@@ -148,7 +140,7 @@ services:
       - marketing-net
 
   superset:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.superset
     container_name: mkt_superset
@@ -169,12 +161,7 @@ services:
     networks:
       - marketing-net
     entrypoint: >
-      /bin/sh -c "
-      superset fab create-admin --username $$ADMIN_USERNAME --firstname Superset --lastname Admin --email $$ADMIN_EMAIL --password $$ADMIN_PASSWORD || true &&
-      superset db upgrade &&
-      superset init &&
-      superset run -p 8088 --with-threads --reload --debugger --host 0.0.0.0
-      "
+      /bin/sh -c " superset db upgrade && (superset fab create-admin --username $$ADMIN_USERNAME --firstname Superset --lastname Admin --email $$ADMIN_EMAIL --password $$ADMIN_PASSWORD || true) && superset init && superset run -p 8088 --with-threads --reload --debugger --host 0.0.0.0 "
 
   spark-master:
     image: apache/spark:3.5.3
@@ -207,6 +194,8 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - marketing-net
 
@@ -309,39 +298,6 @@ services:
     networks:
       - marketing-net
 
-  # 8. Batch Consumer (Worker — listens on topic_batch_requests, runs ingestion → Kafka)
-  batch-consumer:
-    build:
-      context: .
-      dockerfile: Dockerfile.airflow
-    image: mkt_airflow:latest
-    container_name: mkt_batch_consumer
-    depends_on:
-      - kafka
-      - minio-init
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=admin
-      - MINIO_SECRET_KEY=password123
-      - MINIO_BUCKET=marketing-datalake
-    command: >
-      bash -c "
-      cd /opt/spark/work-dir &&
-      export PYTHONPATH=$PYTHONPATH:/opt/spark/work-dir &&
-      pip install --quiet minio openpyxl pandas confluent-kafka &&
-      while true; do
-        python3 -m ingest.workers.batch_consumer;
-        echo 'batch_consumer exited, restarting in 5s...';
-        sleep 5;
-      done
-      "
-    volumes:
-      - ./:/opt/spark/work-dir
-    networks:
-      - marketing-net
-    restart: on-failure
-
   # 9. Speed Layer (Spark Structured Streaming)
   speed-layer:
     build:
@@ -361,12 +317,7 @@ services:
       - MINIO_BUCKET=marketing-datalake
       - SPEED_LAYER_TRIGGER=30 seconds
     command: >
-      bash -c "spark-submit
-      --master spark://spark-master:7077
-      --conf spark.cores.max=4
-      --conf spark.executor.memory=512m
-      --jars /opt/airflow/jars/spark-sql-kafka.jar,/opt/airflow/jars/kafka-clients.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar,/opt/airflow/jars/spark-token-provider-kafka.jar
-      /opt/spark/work-dir/spark_consumer/speed_layer.py"
+      bash -c "spark-submit --master spark://spark-master:7077 --conf spark.cores.max=4 --conf spark.executor.memory=512m --jars /opt/airflow/jars/spark-sql-kafka.jar,/opt/airflow/jars/kafka-clients.jar,/opt/airflow/jars/hadoop-aws.jar,/opt/airflow/jars/aws-java-sdk-bundle.jar,/opt/airflow/jars/commons-pool2.jar,/opt/airflow/jars/spark-token-provider-kafka.jar /opt/spark/work-dir/spark_consumer/speed_layer.py"
     volumes:
       - ./:/opt/spark/work-dir
     networks:
@@ -377,3 +328,4 @@ volumes:
   clickhouse_data:
   minio_data:
   superset_data:
+  postgres_data:

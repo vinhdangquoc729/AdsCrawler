@@ -16,7 +16,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: spark-master
-          image: apache/spark:3.5.1
+          image: apache/spark:3.5.3
           command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
           ports:
             - containerPort: 8080
