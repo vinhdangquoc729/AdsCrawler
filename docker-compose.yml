@@ -21,6 +21,7 @@ services:
       - ./init_clickhouse_realtime.sql:/docker-entrypoint-initdb.d/02_realtime.sql
     networks:
       - marketing-net
+    restart: on-failure
 
   # 2. Apache Kafka (KRaft Mode)
   kafka:
@@ -39,9 +40,11 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qo'
-
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     networks:
       - marketing-net
+    restart: on-failure
 
   # 2b. Kafka Connect (S3 Sink → MinIO)
   kafka-connect:
@@ -66,6 +69,7 @@ services:
       CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
       CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+    restart: on-failure
     command:
       - bash
       - -c
@@ -120,6 +124,7 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
     networks:
       - marketing-net
+    restart: on-failure
 
   # 3. MinIO
   minio:
@@ -136,6 +141,7 @@ services:
       - minio_data:/data
     networks:
       - marketing-net
+    restart: on-failure
 
   minio-init:
     image: minio/mc:latest
@@ -168,6 +174,7 @@ services:
       - superset_data:/app/superset_home
     networks:
       - marketing-net
+    restart: on-failure
     entrypoint: >
       /bin/sh -c "
       superset fab create-admin --username $$ADMIN_USERNAME --firstname Superset --lastname Admin --email $$ADMIN_EMAIL --password $$ADMIN_PASSWORD || true &&
@@ -188,6 +195,7 @@ services:
       - ./:/opt/spark/work-dir
     networks:
       - marketing-net
+    restart: on-failure
 
   spark-worker:
     image: apache/spark:3.5.3
@@ -198,6 +206,7 @@ services:
       - spark-master
     networks:
       - marketing-net
+    restart: on-failure
 
   # 5. Airflow Metadata Database
   postgres:
@@ -207,8 +216,11 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - marketing-net
+    restart: on-failure
 
   airflow-init:
     image: apache/airflow:2.7.1
@@ -272,6 +284,7 @@ services:
     command: airflow webserver
     networks:
       - marketing-net
+    restart: on-failure
 
   # 7. Airflow Scheduler 
   airflow-scheduler:
@@ -308,6 +321,7 @@ services:
     command: airflow scheduler
     networks:
       - marketing-net
+    restart: on-failure
 
   # 8. Batch Consumer (Worker — listens on topic_batch_requests, runs ingestion → Kafka)
   batch-consumer:
@@ -377,3 +391,5 @@ volumes:
   clickhouse_data:
   minio_data:
   superset_data:
+  kafka_data:
+  postgres_data:
