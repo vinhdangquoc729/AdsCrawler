@@ -33,6 +33,9 @@ Run (inside Docker):
 
 import os
 import argparse
+import base64
+import time
+import urllib.request
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
@@ -48,6 +51,80 @@ CLICKHOUSE_PROPS = {
     "driver": "com.clickhouse.jdbc.ClickHouseDriver",
     "isolationLevel": "NONE",
 }
+
+# ── ClickHouse HTTP helpers (dùng cho purge và optimize) ──────────────────────
+
+_CH_HTTP_URL  = os.getenv("CLICKHOUSE_HTTP_URL", "http://clickhouse:8123/")
+_CH_HTTP_AUTH = base64.b64encode(b"admin:password123").decode()
+
+def _ch_exec(query: str) -> str:
+    """Gửi query DDL/DML tới ClickHouse qua HTTP API, trả về response text."""
+    req = urllib.request.Request(_CH_HTTP_URL, data=query.encode(), method="POST")
+    req.add_header("Authorization", f"Basic {_CH_HTTP_AUTH}")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return r.read().decode().strip()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"ClickHouse HTTP {e.code}: {e.read().decode()}")
+
+def _wait_mutations(table: str, timeout: int = 120) -> None:
+    """Block cho đến khi ClickHouse hoàn thành tất cả mutation đang chờ của table."""
+    check = (
+        f"SELECT count() FROM system.mutations "
+        f"WHERE database='marketing_db' AND table='{table}' AND is_done=0 "
+        f"FORMAT TabSeparated"
+    )
+    for _ in range(timeout):
+        if _ch_exec(check) == "0":
+            return
+        time.sleep(1)
+    print(f"  [WARN] Mutation wait timeout for {table}, proceeding anyway.")
+
+def _purge_date(table: str, date_col: str, process_date: str) -> None:
+    """
+    Xóa toàn bộ rows của process_date trong table trước khi re-insert.
+    Đảm bảo idempotency: retry bao nhiêu lần cũng không bị duplicate.
+    Chỉ gọi khi process_date != None (incremental mode).
+    """
+    print(f"  [PURGE] marketing_db.{table} WHERE {date_col} = '{process_date}'")
+    _ch_exec(
+        f"ALTER TABLE marketing_db.{table} DELETE WHERE {date_col} = '{process_date}'"
+    )
+    _wait_mutations(table)
+
+# Mapping: tên table → tên cột date dùng để purge.
+# Chỉ fact/staging tables (có date column).
+# Dimension tables (dim_*) KHÔNG cần purge: ReplacingMergeTree(updated_at) đã idempotent.
+_FACT_DATE_MAP: dict = {
+    "fad_ad_daily_report":            "date_start",
+    "fact_fb_ad_daily":               "date_start",
+    "fact_fb_ad_creative_daily":      "date_start",
+    "fact_fb_ad_demographic_daily":   "date_start",
+    "gad_campaign_daily_report":      "date",
+    "gad_ad_group_daily_report":      "date",
+    "gad_account_daily_report":       "date",
+    "gad_keyword_performance_report": "date",
+    "gad_age_report":                 "date",
+    "gad_gender_report":              "date",
+    "gad_ad_asset_daily_report":      "date",
+    "gad_click_type_report":          "date",
+    "fact_gg_campaign_daily":         "date",
+    "fact_gg_adgroup_daily":          "date",
+    "fact_gg_keyword_daily":          "date",
+    "fact_gg_age_daily":              "date",
+    "fact_gg_gender_daily":           "date",
+    "fact_gg_asset_daily":            "date",
+    "fact_gg_click_type_daily":       "date",
+    "tta_ad_performance":             "stat_time_day",
+    "fact_tta_ad_daily":              "date",
+}
+
+def purge_all_fact_tables(process_date: str) -> None:
+    """Xóa data của process_date khỏi tất cả fact/staging tables trước khi ghi mới."""
+    print(f"\n[PURGE] Xóa data cũ cho {process_date} để đảm bảo idempotency...")
+    for table, date_col in _FACT_DATE_MAP.items():
+        _purge_date(table, date_col, process_date)
+    print("[PURGE] Xong.\n")
 
 def create_spark() -> SparkSession:
     return (
@@ -756,6 +833,12 @@ def main():
     else:
         print("  Mode: FULL (all data)")
     print("=" * 55)
+
+    # Idempotency: xóa data cũ cho ngày này trước khi ghi.
+    # Nếu Airflow retry task, sẽ không bị duplicate.
+    # Legacy mode (process_date=None) bỏ qua bước này.
+    if process_date:
+        purge_all_fact_tables(process_date)
 
     print("\n[1/10] fad_ad_daily_report")
     df_daily = read_table(spark, "fad_ad_daily_report", process_date)

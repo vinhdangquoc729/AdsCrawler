@@ -9,3 +9,5 @@ spark-3.5.1-bin-hadoop3.tgz
 
 *.xlsx
 .DS_Store
+debug/
+stuff/
