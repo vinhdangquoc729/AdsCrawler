@@ -75,12 +75,12 @@ Vì hệ thống chạy rất nhiều dịch vụ nặng cùng lúc (Kafka, Spar
 Chạy lệnh sau để cấp phát tài nguyên cho Minikube:
 
 ```bash
-minikube start --memory=8192 --cpus=4 --driver=docker
+minikube start --memory=12192 --cpus=5 --driver=docker
 ```
 
 > [!NOTE]
-> *   `--memory=8192`: Cấp 8GB RAM cho máy ảo chạy K8s.
-> *   `--cpus=4`: Cấp 4 nhân CPU.
+> *   `--memory=12192`: Cấp 12GB RAM cho máy ảo chạy K8s.
+> *   `--cpus=5`: Cấp 5 nhân CPU.
 > *   `--driver=docker`: Sử dụng Docker làm môi trường nền tảng (Windows dùng Docker Desktop, Linux dùng Docker Engine).
 > *   *Lưu ý: Lần đầu tiên chạy lệnh này sẽ mất từ 3 đến 5 phút để tải các gói cài đặt về máy.*
 
